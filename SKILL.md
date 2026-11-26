@@ -26,6 +26,8 @@ Ezek a subagentek a `agents/` mappában vannak. Használd őket az alábbi célo
 
 Ha a kódolás részfeladatai (pl. UI, adatmodell, tesztek) függetlenek, saját megbízással is indíthatók subagentek. Ilyenkor a főmodell marad az, aki a fájlokat összeilleszti.
 
+- Kész, auditált munka önálló commitja és mergelése → `auto-git` skill
+
 ## Munkamenet
 
 1. **Cél és kimenet.** Egy mondatban rögzítsd, mi kell, és milyen formában (kód, döntés, lista, dokumentum).

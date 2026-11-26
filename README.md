@@ -11,4 +11,5 @@ Hatékony, subagent-alapú munkavégzés Claude Code-ban. A fő modell tervez é
 - `kod-audit` skill: szigorú kódaudit + design + szakmai programozó szemlélet; addig nem engedi lezárni a munkát, amíg a hibák ki nincsenek javítva
 - `auto-git` skill: a kész, auditált munkát kérdés nélkül, önállóan commitolja, pusholja és mainbe mergeli (kapuval és tiltott műveletekkel védve)
 - `skill-keret` skill + `scripts/skill-check.py`: számolja a skilleket, figyelmeztet, ha túl sok vagy túl hosszú
+- `.claude/hooks/session-start.sh`: SessionStart hook, minden munkamenet elején lefuttatja a skill-check-et, és csak akkor szól, ha túl sok vagy túl hosszú a skill (a repóra érvényes; más repóba a `scripts/` és `.claude/` mappát is másold át)
 - `kutato`, `ellenorzo`, `osszefoglalo`, `auditor`: előre beállított subagentek

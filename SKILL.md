@@ -22,6 +22,7 @@ Ezek a subagentek a `agents/` mappában vannak. Használd őket az alábbi célo
 - Kutatás, fájlolvasás, kivonatolás, dokumentáció-keresés → `kutato`
 - Egy változtatás vagy eredmény ellenőrzése a célhoz képest → `ellenorzo`
 - Több részeredmény egy tiszta összefoglalóba rendezése → `osszefoglalo`
+- Megírt vagy módosított kód szigorú auditja, hibakeresés és javíttatás → `kod-audit` skill (`auditor` subagent)
 
 Ha a kódolás részfeladatai (pl. UI, adatmodell, tesztek) függetlenek, saját megbízással is indíthatók subagentek. Ilyenkor a főmodell marad az, aki a fájlokat összeilleszti.
 
@@ -36,7 +37,7 @@ Ha a kódolás részfeladatai (pl. UI, adatmodell, tesztek) függetlenek, saját
    - a kimenet formátuma és maximális hossza
    - mit NE csináljon (pl. „ne írj kódot, csak olvass")
 5. **Párhuzamos futtatás.** A független botok egyszerre fussanak.
-6. **Ellenőrzés.** Kódnál és döntésnél mindig futtass ellenőrzést (teszt, lint, `ellenorzo`). Rutin kivonatolásnál nem kell.
+6. **Ellenőrzés.** Kódnál mindig futtasd a `kod-audit` skillt, és addig ne zárd le, amíg tiszta. Döntésnél teszt, lint vagy `ellenorzo`. Rutin kivonatolásnál nem kell.
 7. **Szintézis.** A főmodell tömör összefoglalót ír, és elvégzi a végleges változtatásokat. A subagentek nyers kimenetét nem másolja be.
 
 ## Kódolási szabályok

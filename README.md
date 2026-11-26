@@ -8,4 +8,6 @@ Hatékony, subagent-alapú munkavégzés Claude Code-ban. A fő modell tervez é
 
 ## Tartalom
 - `kis-botok` skill: mikor és hogyan használj subagenteket
-- `kutato`, `ellenorzo`, `osszefoglalo`: előre beállított subagentek
+- `kod-audit` skill: szigorú kódaudit + design + szakmai programozó szemlélet; addig nem engedi lezárni a munkát, amíg a hibák ki nincsenek javítva
+- `auto-git` skill: a kész, auditált munkát kérdés nélkül, önállóan commitolja, pusholja és mainbe mergeli (kapuval és tiltott műveletekkel védve)
+- `kutato`, `ellenorzo`, `osszefoglalo`, `auditor`: előre beállított subagentek

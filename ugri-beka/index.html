@@ -57,6 +57,36 @@ h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf-dark)
 #closeQr{position:absolute;top:-18px;right:-12px;width:52px;height:52px}
 .panel.rel{position:relative}
 #startFrog{width:180px;height:150px}
+
+/* Telefonra hangolás */
+.overlay{overflow-y:auto;padding-top:12px;padding-bottom:12px}
+.panel{margin:auto}
+#game{width:100vw;height:100vh;height:100dvh}
+@media (max-width:420px){
+  .round{width:48px;height:48px;border-width:3px}
+  .round svg{width:24px;height:24px}
+  #topbar{gap:8px;top:calc(env(safe-area-inset-top,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 8px)}
+  #hud{top:calc(env(safe-area-inset-top,0px) + 8px);left:calc(env(safe-area-inset-left,0px) + 8px);font-size:22px;padding:2px 12px 2px 6px;border-width:3px;gap:6px}
+  #hud svg{width:30px;height:30px}
+  .panel{padding:18px 16px 22px;border-radius:28px}
+}
+@media (max-width:380px){ #dots{display:none} }
+@media (max-height:520px){
+  .panel{max-width:min(680px,100%);flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;padding:12px 20px 16px;gap:8px 18px}
+  .panel h1,.panel h2{width:100%;font-size:38px}
+  #startFrog{width:140px;height:117px}
+  .play{width:104px;height:104px}
+  .play svg{width:56px;height:56px}
+  .big{width:84px;height:84px}
+  .big svg{width:44px;height:44px}
+  .stars svg{width:44px;height:44px}
+  #qrImg{width:150px;height:150px}
+  .panel .small{display:none}
+  .round{width:48px;height:48px}
+  .round svg{width:24px;height:24px}
+  #hud{font-size:22px}
+  #hud svg{width:30px;height:30px}
+}
 </style>
 
 <canvas id="game" aria-label="Ugri Béka játék"></canvas>
@@ -137,11 +167,13 @@ let cssW, cssH, dpr, scale, offX, viewH;
 function resize(){
   dpr = Math.min(window.devicePixelRatio||1, 2.5);
   cssW = window.innerWidth; cssH = window.innerHeight;
-  cv.width = Math.round(cssW*dpr); cv.height = Math.round(cssH*dpr);
-  scale = Math.min(cssW/WORLD_W, cssH/560);
+  cv.width = Math.round(cssW*dpr); cv.height = Math.round(cssH*dpr); cv.style.width = cssW+'px'; cv.style.height = cssH+'px';
+  scale = Math.min(cssW/WORLD_W, cssH/(cssH < cssW ? 400 : 560));
   offX = (cssW - WORLD_W*scale)/2; viewH = cssH/scale;
 }
-window.addEventListener('resize', resize); resize();
+window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+if(window.visualViewport) visualViewport.addEventListener('resize', resize);
+resize();
 
 const rnd = i => { const s = Math.sin(i*127.1+311.7)*43758.5453; return s - Math.floor(s); };
 const lerp = (a,b,t) => a+(b-a)*t;
@@ -562,7 +594,7 @@ function drawBanks(c, top, bot){
     const span = Math.abs(outer - (side < 0 ? 20 : 380));
     for(let i=Math.floor(top/24); i<=Math.ceil(bot/24); i++){
       for(let d=10; d<span; d+=22){
-        const y = i*24 + rnd(i*13+d)*14, x = bankEdge(y,side) - side*(d + rnd(i+d*3)*10);
+        const y = i*24 + rnd(i*13+d)*14, x = bankEdge(y,side) + side*(d + rnd(i+d*3)*10);
         c.beginPath(); c.moveTo(x-3,y); c.lineTo(x-4,y-6); c.moveTo(x,y); c.lineTo(x,y-8); c.moveTo(x+3,y); c.lineTo(x+4,y-6); c.stroke();
       }
     }
@@ -571,7 +603,7 @@ function drawBanks(c, top, bot){
       const y = i*55 + rnd(i*3+side)*30, r = rnd(i*5+side*9), ex = bankEdge(y,side);
       if(r < 0.22) drawReed(c, ex - side*8, y, side);
       else if(r < 0.4) drawStone(c, ex + side*1, y, 7 + rnd(i*11)*5, i);
-      else if(r < 0.62) drawFlower(c, ex - side*(14 + rnd(i)*16), y, 6.5);
+      else if(r < 0.62) drawFlower(c, ex + side*(span > 40 ? 14 + rnd(i)*Math.min(30, span-20) : 8), y, 6.5);
       else if(r < 0.72) { drawReed(c, ex - side*6, y, side); drawReed(c, ex - side*13, y+8, side); }
     }
   }

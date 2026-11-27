@@ -1,9 +1,9 @@
 ---
 name: kis-botok
-description: Hatékony többlépcsős munka subagentekkel, kódoláshoz és app-fejlesztéshez is. Nagyobb, több részből álló feladatnál a fő modell tervez és szintetizál, a rutinmunkát olcsóbb subagentek végzik, és a fő kontextus tiszta marad. Használd kutatásnál, több fájl átnézésénél, összehasonlításnál, hibakeresésnél, refaktornál vagy ha a feladat független részekre bontható.
+description: 🧩 SKILL · Hatékony többlépcsős munka subagentekkel, kódoláshoz és app-fejlesztéshez is. Nagyobb, több részből álló feladatnál a fő modell tervez és szintetizál, a rutinmunkát olcsóbb subagentek végzik, és a fő kontextus tiszta marad. Használd kutatásnál, több fájl átnézésénél, összehasonlításnál, hibakeresésnél, refaktornál vagy ha a feladat független részekre bontható.
 ---
 
-# Kis botok – hatékony subagent-munka
+# 🧩 Kis botok – hatékony subagent-munka
 
 ## Döntés: kell-e subagent?
 - **Igen**, ha 3+ független részfeladat van, sok fájlt vagy nagy kimenetet kell átnézni, kutatás vagy összehasonlítás a cél, vagy app-fejlesztésnél külön réteg (UI, adatmodell, logika, tesztek) is van.

@@ -1,9 +1,9 @@
 ---
 name: kod-audit
-description: Szigorú kódaudit, profi design- és programozói szemlélettel. Minden megírt vagy módosított kódot automatikusan felülvizsgál, hibákat keres, és addig nem engedi lezárni a munkát, amíg minden hiba ki nincs javítva. Használd minden kódírás, módosítás, refaktor vagy UI-fejlesztés végén, commit előtt, és ha a felhasználó ellenőrzést, auditot, review-t kér.
+description: 🧩 SKILL · Szigorú kódaudit, profi design- és programozói szemlélettel. Minden megírt vagy módosított kódot automatikusan felülvizsgál, hibákat keres, és addig nem engedi lezárni a munkát, amíg minden hiba ki nincs javítva. Használd minden kódírás, módosítás, refaktor vagy UI-fejlesztés végén, commit előtt, és ha a felhasználó ellenőrzést, auditot, review-t kér.
 ---
 
-# Kód-audit – szigorú kapu
+# 🧩 Kód-audit – szigorú kapu
 
 Ez egyszerre három szerep: **szigorú auditor**, **profi designer**, **szakmai programozó**.
 Alapelv: **egyszerű, tiszta, hibátlan.** A kevesebb kód a jobb kód. Ami nem kell, az törlendő.

@@ -1,9 +1,9 @@
 ---
 name: auto-git
-description: Automatikus és önálló git-munkafolyamat kérdezés nélkül. Ha egy repóhoz hozzá van adva, a kész és auditált munkát magától commitolja, ágra pusholja, és mainbe mergeli. Használd minden befejezett kódmunka végén, amikor a felhasználó előre engedélyezte az önálló commitot és mergelést.
+description: 🧩 SKILL · Automatikus és önálló git-munkafolyamat kérdezés nélkül. Ha egy repóhoz hozzá van adva, a kész és auditált munkát magától commitolja, ágra pusholja, és mainbe mergeli. Használd minden befejezett kódmunka végén, amikor a felhasználó előre engedélyezte az önálló commitot és mergelést.
 ---
 
-# Auto-git – önálló commit, push és merge
+# 🧩 Auto-git – önálló commit, push és merge
 
 A felhasználó ezzel a skillel **előre, tartósan engedélyezte**, hogy a munka végén kérdezés nélkül commitolj, pushölj és mergelj mainbe. Ne kérdezz rá minden lépésnél, csak tedd meg. A "kész?" kérdés helyett a kapu dönt.
 

@@ -1,9 +1,9 @@
 ---
 name: skill-keret
-description: Skill-mennyiség őrzése. Futtasd, amikor új skillt adsz hozzá, skillt módosítasz, vagy a skillek száma, hossza vagy pontatlan kiválasztása miatt aggódsz. Figyelmeztet, ha túl sok vagy túl hosszú a skill.
+description: 🧩 SKILL · Skill-mennyiség őrzése. Futtasd, amikor új skillt adsz hozzá, skillt módosítasz, vagy a skillek száma, hossza vagy pontatlan kiválasztása miatt aggódsz. Figyelmeztet, ha túl sok vagy túl hosszú a skill.
 ---
 
-# Skill-keret
+# 🧩 Skill-keret
 
 Új vagy módosított skill után futtasd: `python3 scripts/skill-check.py`
 

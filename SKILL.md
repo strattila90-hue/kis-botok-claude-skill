@@ -17,7 +17,7 @@ description: 🧩 SKILL · Hatékony többlépcsős munka subagentekkel, kódol�
 
 ## Subagentek
 
-Ezek a subagentek a `agents/` mappában vannak. Használd őket az alábbi célokra:
+Ezek a subagentek a repó gyökerében vannak (`kutato.md`, `ellenorzo.md`, `osszefoglalo.md`, `auditor.md`). Használd őket az alábbi célokra:
 
 - Kutatás, fájlolvasás, kivonatolás, dokumentáció-keresés → `kutato`
 - Egy változtatás vagy eredmény ellenőrzése a célhoz képest → `ellenorzo`
@@ -41,6 +41,13 @@ Ha a kódolás részfeladatai (pl. UI, adatmodell, tesztek) függetlenek, saját
 5. **Párhuzamos futtatás.** A független botok egyszerre fussanak.
 6. **Ellenőrzés.** Kódnál mindig futtasd a `kod-audit` skillt, és addig ne zárd le, amíg tiszta. Döntésnél teszt, lint vagy `ellenorzo`. Rutin kivonatolásnál nem kell.
 7. **Szintézis.** A főmodell tömör összefoglalót ír, és elvégzi a végleges változtatásokat. A subagentek nyers kimenetét nem másolja be.
+
+## Gyakorlati szabályok (tapasztalatból)
+- **Ha a `kutato`/`ellenorzo` nem választható subagent-típusként** (pl. cloud munkamenetben), indítsd `general-purpose` típussal és `model` paraméterrel (`haiku`/`sonnet`); a megbízás első mondata nevezze meg a szerepet.
+- **Az új kódra mindig fusson ellenőrző bot** (`sonnet`, háttérben), amíg a főmodell tesztel. Kérd tőle súlyosság szerint rendezve, reprodukcióval.
+- **Ha egy bot indítását a jogosultság-ellenőrző letiltja,** ne indítsd újra ugyanúgy. Végezd el a főszálon kisebb lépésekben, és a végén mondd el, mi maradt ki.
+- **Mérj előtte és utána** (teszt, FPS, futásidő), és a mért számot jelentsd, ne becslést.
+- **Hosszú munkánál** egy-két mondatban jelezd, épp min dolgozol.
 
 ## Kódolási szabályok
 - Mielőtt módosítasz, olvasd el a meglévő kódot és a stílust. Ne vezess be új függőséget engedély nélkül.

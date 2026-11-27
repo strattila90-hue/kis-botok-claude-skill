@@ -8,6 +8,7 @@ MAX_NAME, MAX_DESC = 64, 1024      # kemény korlát
 WARN_COUNT, MAX_COUNT = 12, 25     # figyelmeztetés / erős figyelmeztetés
 WARN_TOTAL = 6000                  # összes leírás karakterszáma
 WARN_BODY_LINES = 300              # SKILL.md törzs hossza
+BADGE = "🧩 SKILL"                  # látható skill-jelölés a leírás elején
 
 root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 files = sorted(p for p in root.rglob("SKILL.md") if ".git" not in p.parts)
@@ -26,6 +27,7 @@ for f in files:
     if not name or not desc: errors.append(f"{f}: name/description hiányzik")
     if len(name) > MAX_NAME: errors.append(f"{name}: név > {MAX_NAME} karakter")
     if len(desc) > MAX_DESC: errors.append(f"{name}: leírás {len(desc)} > {MAX_DESC} karakter")
+    if not desc.startswith(BADGE): warns.append(f"{name}: a leírás nem '{BADGE} · ' jelöléssel kezdődik")
     if lines > WARN_BODY_LINES: warns.append(f"{name}: {lines} soros törzs, vidd külön fájlba a részleteket")
 
 n = len(files)

@@ -226,7 +226,7 @@ function initAudio(){
   AC = new A(); master = AC.createGain(); master.gain.value = 0.9; master.connect(AC.destination);
   musicGain = AC.createGain(); musicGain.gain.value = musicOn ? 0.16 : 0; musicGain.connect(master);
   sfxGain = AC.createGain(); sfxGain.gain.value = 0.85; sfxGain.connect(master);
-  startMusic();
+  startMusic(); buildSounds();
 }
 function env(g, t, a, peak, d){ g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+a); g.gain.exponentialRampToValueAtTime(0.0001, t+a+d); }
 function tone(f, t, dur, type, vol, out, f2){
@@ -235,38 +235,92 @@ function tone(f, t, dur, type, vol, out, f2){
   env(g, t, 0.01, vol, dur); o.connect(g); g.connect(out||sfxGain); o.start(t); o.stop(t+dur+0.05);
 }
 function noiseBuf(){ if(noiseBuf.b) return noiseBuf.b; const b = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; return noiseBuf.b = b; }
-function sfxBoing(pitch){
-  if(!AC) return; const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), l = AC.createOscillator(), lg = AC.createGain();
-  o.type = 'sine'; o.frequency.setValueAtTime(170*pitch, t); o.frequency.exponentialRampToValueAtTime(560*pitch, t+0.12); o.frequency.exponentialRampToValueAtTime(300*pitch, t+0.4);
-  l.frequency.value = 16; lg.gain.value = 45*pitch; l.connect(lg); lg.connect(o.frequency);
-  env(g, t, 0.01, 0.45, 0.4); o.connect(g); g.connect(sfxGain); o.start(t); l.start(t); o.stop(t+0.5); l.stop(t+0.5);
-}
-function sfxWhee(){ if(!AC) return; const t = AC.currentTime; tone(500, t+0.05, 0.35, 'triangle', 0.18, null, 1400); }
-function sfxPlop(){ if(!AC) return; const t = AC.currentTime; tone(420, t, 0.12, 'sine', 0.35, null, 140); }
 function sfxSplash(){
   if(!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
-  s.buffer = noiseBuf(); f.type = 'lowpass'; f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(300, t+0.6);
-  env(g, t, 0.01, 0.6, 0.6); s.connect(f); f.connect(g); g.connect(sfxGain); s.start(t); s.stop(t+0.7);
-  tone(300, t, 0.25, 'sine', 0.3, null, 90);
+  s.buffer = noiseBuf(); f.type = 'lowpass'; f.frequency.setValueAtTime(3500, t); f.frequency.exponentialRampToValueAtTime(280, t+0.55);
+  env(g, t, 0.005, 0.55, 0.55); s.connect(f); f.connect(g); g.connect(sfxGain); s.start(t); s.stop(t+0.65);
+  tone(260, t, 0.22, 'sine', 0.35, null, 80);
 }
-function sfxSqueak(){ // visító béka: "víííí-ííí!"
-  if(!AC) return; const t = AC.currentTime + 0.05;
-  const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), l = AC.createOscillator(), lg = AC.createGain();
-  o.type = 'sawtooth'; f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 1.6;
-  o.frequency.setValueAtTime(800, t); o.frequency.exponentialRampToValueAtTime(2000, t+0.14);
-  o.frequency.exponentialRampToValueAtTime(1500, t+0.32); o.frequency.exponentialRampToValueAtTime(2300, t+0.48); o.frequency.exponentialRampToValueAtTime(950, t+0.85);
-  l.frequency.value = 26; lg.gain.value = 110; l.connect(lg); lg.connect(o.frequency);
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t+0.03); g.gain.setValueAtTime(0.5, t+0.6); g.gain.exponentialRampToValueAtTime(0.0001, t+0.9);
-  o.connect(f); f.connect(g); g.connect(sfxGain); o.start(t); l.start(t); o.stop(t+0.95); l.stop(t+0.95);
+
+/* --- Valószerű béka- és vízhangok: előre kiszámolt hangminták ---
+   Egy igazi béka hangja gyors hangszál-pulzusokból áll, amit a torka és a szája
+   "formánsokká" szűr. Ezt utánozzuk: pulzussorozat + három rezonátor. */
+const SND = {};
+function makeBuf(dur, fill){
+  const sr = AC.sampleRate, n = Math.floor(dur*sr), b = AC.createBuffer(1, n, sr), d = b.getChannelData(0);
+  fill(d, sr);
+  let m = 0; for(let i=0;i<n;i++){ const a = Math.abs(d[i]); if(a > m) m = a; }
+  if(m > 0) for(let i=0;i<n;i++) d[i] *= 0.9/m;
+  const f = Math.min(n>>1, Math.floor(sr*0.005)); for(let i=0;i<f;i++){ d[i] *= i/f; d[n-1-i] *= i/f; }
+  return b;
 }
-function sfxCroak(){ // brekk
-  if(!AC) return; const t = AC.currentTime;
-  [0, 0.2].forEach(d => {
-    const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), am = AC.createOscillator(), amg = AC.createGain();
-    o.type = 'sawtooth'; o.frequency.setValueAtTime(150, t+d); o.frequency.linearRampToValueAtTime(115, t+d+0.16);
-    f.type = 'lowpass'; f.frequency.value = 900; am.type = 'square'; am.frequency.value = 22; amg.gain.value = 0.12; am.connect(amg); amg.connect(g.gain);
-    env(g, t+d, 0.01, 0.22, 0.16); o.connect(f); f.connect(g); g.connect(sfxGain); o.start(t+d); am.start(t+d); o.stop(t+d+0.22); am.stop(t+d+0.22);
-  });
+function reso(f, bw, sr){
+  const r = Math.exp(-Math.PI*bw/sr), a1 = -2*r*Math.cos(2*Math.PI*f/sr), a2 = r*r, g = 1 - r; let y1 = 0, y2 = 0;
+  return x => { const y = g*x - a1*y1 - a2*y2; y2 = y1; y1 = y; return y; };
+}
+function frogCall(d, sr, syls){
+  for(const s of syls){
+    const r = [reso(s.f1, s.b1||120, sr), reso(s.f2, s.b2||220, sr), reso(s.f3, s.b3||350, sr)];
+    const i0 = Math.floor(s.t*sr), n = Math.floor(s.d*sr), tail = Math.floor(0.04*sr); let ph = 0;
+    for(let i=0; i<n+tail && i0+i<d.length; i++){
+      const t = i/sr, k = Math.min(1, i/n);
+      const e = i < n ? Math.min(1, t/0.008) * Math.pow(1-k, 0.6) * (0.7 + 0.3*Math.sin(Math.PI*k)) : 0;
+      ph += s.rate*(1 + (s.glide||0)*k)/sr; let x = 0;
+      if(ph >= 1){ ph -= 1; x = e*(0.75 + Math.random()*0.5); }
+      x += e*(Math.random()*2-1)*0.04;
+      d[i0+i] += r[0](x) + r[1](x)*0.7 + r[2](x)*0.35;
+    }
+  }
+}
+function fartFill(d, sr, base){ // "prrrrt-t-t": ajak-rezgés pulzusai, lötyögő hangmagassággal, a végén akadozik
+  const n = d.length, r1 = reso(150, 90, sr), r2 = reso(430, 240, sr); let ph = 0, lp = 0, nz = 0;
+  for(let i=0;i<n;i++){
+    const t = i/sr, k = i/n;
+    const f = base*(1 - 0.42*k) + 14*Math.sin(2*Math.PI*6*t) + 7*Math.sin(2*Math.PI*13.7*t) + (Math.random()-0.5)*10;
+    let e = Math.min(1, t/0.03) * (k < 0.7 ? 1 : 1 - (k-0.7)/0.3);
+    if(k > 0.6) e *= Math.sin(2*Math.PI*(8 + 10*k)*t) > -0.25 ? 1 : 0.12;
+    ph += f/sr; let x = 0; if(ph >= 1){ ph -= 1; x = 1; }
+    lp += (x*e - lp)*0.3;
+    nz += ((Math.random()*2-1)*e*0.3 - nz)*0.07;
+    d[i] = r1(lp) + r2(lp)*0.5 + lp*0.5 + nz*0.9;
+  }
+}
+function bubbleFill(d, sr){ // víz alatti buborékok: mindegyik egy felfelé csúszó "blup"
+  const n = d.length;
+  for(let j=0;j<8;j++){
+    const t0 = 0.03 + j*0.085 + Math.random()*0.05, f0 = 320 + Math.random()*600, a = 0.5 + Math.random()*0.5, i0 = Math.floor(t0*sr); let ph = 0;
+    for(let i=0; i<Math.floor(0.09*sr) && i0+i<n; i++){ const t = i/sr; ph += 2*Math.PI*f0*(1 + t*14)/sr; d[i0+i] += Math.sin(ph)*Math.exp(-t/0.025)*a; }
+  }
+}
+function buildSounds(){
+  if(SND.ok || !AC) return; SND.ok = true;
+  SND.ribbit = [1, 1.14, 0.88].map(p => makeBuf(0.36, (d,sr) => frogCall(d, sr, [
+    {t:0.01, d:0.11, rate:95*p, f1:700*p, f2:1500*p, f3:2600*p},
+    {t:0.17, d:0.13, rate:110*p, glide:0.15, f1:820*p, f2:1750*p, f3:2900*p}])));
+  SND.croak = makeBuf(0.5, (d,sr) => frogCall(d, sr, [
+    {t:0.01, d:0.08, rate:62, f1:420, f2:1100, f3:2100},
+    {t:0.11, d:0.32, rate:42, glide:-0.15, f1:300, f2:820, f3:1500, b1:90}]));
+  SND.fart = [108, 86].map(b => makeBuf(0.9, (d,sr) => fartFill(d, sr, b)));
+  SND.bubbles = makeBuf(0.85, bubbleFill);
+}
+function playBuf(b, rate, vol, delay){
+  if(!AC || !b) return; const s = AC.createBufferSource(), g = AC.createGain();
+  s.buffer = b; s.playbackRate.value = rate || 1; g.gain.value = vol == null ? 0.8 : vol;
+  s.connect(g); g.connect(sfxGain); s.start(AC.currentTime + (delay || 0));
+}
+function sfxRibbit(){ if(!AC) return; buildSounds(); playBuf(SND.ribbit[Math.random()*3|0], 0.94 + Math.random()*0.14, 1.1); }
+function sfxCroak(){ if(!AC) return; buildSounds(); playBuf(SND.croak, 0.95 + Math.random()*0.1, 0.95); }
+function sfxFart(){ if(!AC) return; buildSounds(); playBuf(SND.fart[Math.random()*2|0], 0.9 + Math.random()*0.25, 0.85, 0.12); playBuf(SND.bubbles, 1, 0.5, 0.8); }
+function sfxWhoosh(){
+  if(!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf(); f.type = 'bandpass'; f.Q.value = 1.4; f.frequency.setValueAtTime(500, t); f.frequency.exponentialRampToValueAtTime(1600, t+0.25);
+  env(g, t, 0.06, 0.12, 0.25); s.connect(f); f.connect(g); g.connect(sfxGain); s.start(t); s.stop(t+0.35);
+}
+function sfxPlop(){ // puha huppanás a levélen
+  if(!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf(); f.type = 'lowpass'; f.frequency.value = 450; env(g, t, 0.004, 0.35, 0.09);
+  s.connect(f); f.connect(g); g.connect(sfxGain); s.start(t); s.stop(t+0.12);
+  tone(170, t, 0.1, 'sine', 0.3, null, 85);
 }
 function sfxYum(){ if(!AC) return; const t = AC.currentTime; tone(660, t, 0.09, 'triangle', 0.3); tone(990, t+0.09, 0.16, 'triangle', 0.3); }
 function sfxPop(){ if(!AC) return; const t = AC.currentTime; tone(300, t, 0.1, 'sine', 0.4, null, 900); }
@@ -308,7 +362,7 @@ function startJump(tx,ty,dur){
   frog.state = 'jump'; frog.jt = 0; frog.jdur = dur; frog.fx = frog.x; frog.fy = frog.y; frog.tx = tx; frog.ty = ty;
   frog.trick = TRICKS[Math.floor(Math.random()*TRICKS.length)]; frog.spinDir = Math.random() < 0.5 ? -1 : 1;
   frog.ang = Math.atan2(ty-frog.y, tx-frog.x) + Math.PI/2; frog.pad = null; idleT = 0;
-  sfxBoing(0.85 + Math.random()*0.5); if(frog.trick === 'spin' || frog.trick === 'big') sfxWhee();
+  sfxRibbit(); if(frog.trick === 'spin' || frog.trick === 'big') sfxWhoosh();
   addRipple(frog.fx, frog.fy, 40, 2);
 }
 function land(){
@@ -325,7 +379,8 @@ function land(){
   if(hit.goal) startWin();
 }
 function startSink(){
-  frog.state = 'sink'; frog.sinkT = 0; frog.pad = null; sfxSplash(); sfxSqueak(); addRipple(frog.x, frog.y, 42, 9);
+  frog.state = 'sink'; frog.sinkT = 0; frog.pad = null; sfxSplash(); sfxFart(); addRipple(frog.x, frog.y, 42, 9);
+  setTimeout(() => { for(let i=0;i<10;i++) particles.push({x:frog.x+(Math.random()-0.5)*24, y:frog.y+(Math.random()-0.5)*16, vx:(Math.random()-0.5)*30, vy:-30-Math.random()*60, life:1, decay:0.7+Math.random()*0.5, color:'#ffffff', size:4+Math.random()*6, grav:0, kind:'bubble'}); }, 150);
   for(let i=0;i<4;i++) setTimeout(() => addRipple(frog.x, frog.y, 70+i*15, 3), i*180);
   burst(frog.x, frog.y, 26, ['#ffffff','#bfefff','#8fdcf3'], 220, 6, 260);
 }

@@ -1,0 +1,640 @@
+<title>Ugri Béka</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
+<style>
+/* Layout: egy teljes képernyős tavi vászon, rajta nagy, kerek, ujjbarát gombok. Egyetlen, szándékosan világos "tavi" kinézet. */
+:root{
+  --water:#4fbfe0;
+  --leaf:#7ccf4a;
+  --leaf-dark:#2f6b23;
+  --ink:#1d3a2a;
+  --sun:#ffd23f;
+  --pink:#ff7aa8;
+  --card:#fffaf0;
+  --font-display:"Baloo 2","Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--water);color:var(--ink);font-family:var(--font-display);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+[hidden]{display:none!important}
+#game{position:fixed;inset:0;display:block;touch-action:none}
+.btn{appearance:none;border:4px solid var(--ink);background:var(--card);color:var(--ink);border-radius:999px;
+  font-family:var(--font-display);font-weight:800;cursor:pointer;box-shadow:0 5px 0 var(--ink);transition:transform .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.btn:focus-visible{outline:4px solid var(--sun);outline-offset:3px}
+.round{width:58px;height:58px;display:grid;place-items:center;padding:0}
+.round svg{width:30px;height:30px}
+#topbar{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);display:flex;gap:12px;z-index:5}
+#hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:calc(env(safe-area-inset-left,0px) + 12px);z-index:5;
+  display:flex;align-items:center;gap:10px;background:var(--card);border:4px solid var(--ink);border-radius:999px;padding:4px 16px 4px 8px;
+  font-size:28px;font-weight:800;box-shadow:0 5px 0 var(--ink);font-variant-numeric:tabular-nums}
+#hud svg{width:40px;height:40px}
+#dots{display:flex;gap:6px;margin-left:6px}
+#dots i{width:14px;height:14px;border-radius:50%;border:3px solid var(--ink);background:#fff}
+#dots i.on{background:var(--sun)}
+.overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:rgba(20,70,90,.35)}
+.panel{background:var(--card);border:5px solid var(--ink);border-radius:36px;box-shadow:0 10px 0 var(--ink);padding:24px 24px 28px;
+  max-width:min(440px,100%);width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;box-sizing:border-box}
+h1{margin:0;font-size:clamp(44px,12vw,64px);line-height:.95;color:var(--leaf-dark);text-wrap:balance;letter-spacing:.5px}
+h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf-dark)}
+.play{width:150px;height:150px;border-radius:50%;background:var(--leaf);display:grid;place-items:center;padding:0}
+.play svg{width:80px;height:80px;margin-left:10px}
+.row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.big{width:110px;height:110px}
+.big svg{width:56px;height:56px}
+.stars{display:flex;gap:6px}
+.stars svg{width:56px;height:56px;animation:pop .5s cubic-bezier(.3,1.8,.5,1) both}
+.stars svg:nth-child(2){animation-delay:.15s}.stars svg:nth-child(3){animation-delay:.3s}
+@keyframes pop{from{transform:scale(0) rotate(-40deg)}to{transform:scale(1)}}
+#qrImg{width:220px;height:220px;max-width:100%;border:4px solid var(--ink);border-radius:18px;background:#fff;image-rendering:pixelated}
+.small{font-family:system-ui,sans-serif;font-size:14px;line-height:1.4;color:#3c5446;margin:0;max-width:34ch}
+.url{font-family:ui-monospace,monospace;font-size:12px;word-break:break-all;background:#eef6e8;border-radius:10px;padding:6px 10px;max-width:100%;box-sizing:border-box;-webkit-user-select:all;user-select:all}
+.pill{padding:12px 20px;font-size:18px}
+#closeQr{position:absolute;top:-18px;right:-12px;width:52px;height:52px}
+.panel.rel{position:relative}
+#startFrog{width:180px;height:150px}
+</style>
+
+<canvas id="game" aria-label="Ugri Béka játék"></canvas>
+
+<div id="hud" aria-live="polite">
+  <svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="13" cy="15" rx="9" ry="6" fill="#cdeffc" stroke="#1d3a2a" stroke-width="2.5" transform="rotate(-25 13 15)"/><ellipse cx="27" cy="15" rx="9" ry="6" fill="#cdeffc" stroke="#1d3a2a" stroke-width="2.5" transform="rotate(25 27 15)"/><ellipse cx="20" cy="24" rx="6" ry="9" fill="#2b2b38" stroke="#1d3a2a" stroke-width="2.5"/><circle cx="17.5" cy="17" r="2" fill="#ff5b5b"/><circle cx="22.5" cy="17" r="2" fill="#ff5b5b"/></svg>
+  <span id="flyCount">0</span>
+  <span id="dots"><i></i><i></i><i></i></span>
+</div>
+
+<div id="topbar">
+  <button class="btn round" id="musicBtn" aria-label="Zene be/ki">
+    <svg id="musicOn" viewBox="0 0 24 24" fill="none" stroke="#1d3a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.8" fill="#1d3a2a"/><circle cx="17.5" cy="16" r="2.8" fill="#1d3a2a"/></svg>
+    <svg id="musicOff" viewBox="0 0 24 24" fill="none" stroke="#1d3a2a" stroke-width="2.6" stroke-linecap="round" hidden><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.8" fill="#1d3a2a"/><circle cx="17.5" cy="16" r="2.8" fill="#1d3a2a"/><path d="M3 3l18 18" stroke="#e0483c" stroke-width="3"/></svg>
+  </button>
+  <button class="btn round" id="qrBtn" aria-label="Megosztás QR kóddal">
+    <svg viewBox="0 0 24 24" fill="#1d3a2a"><path d="M3 3h7v7H3zM5 5v3h3V5zM14 3h7v7h-7zM16 5v3h3V5zM3 14h7v7H3zM5 16v3h3v-3zM14 14h3v3h-3zM18 14h3v3h-3zM14 18h3v3h-3zM18 18h3v3h-3z"/></svg>
+  </button>
+</div>
+
+<div class="overlay" id="startScreen">
+  <div class="panel">
+    <h1>Ugri Béka</h1>
+    <canvas id="startFrog" width="360" height="300" aria-hidden="true"></canvas>
+    <button class="btn play" id="playBtn" aria-label="Játék indítása">
+      <svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" fill="#fffaf0" stroke="#1d3a2a" stroke-width="2.2" stroke-linejoin="round"/></svg>
+    </button>
+    <p class="small">Koppints a levélre, és a béka odaugrik!</p>
+  </div>
+</div>
+
+<div class="overlay" id="winScreen" hidden>
+  <div class="panel">
+    <h2>Ügyes vagy!</h2>
+    <div class="stars" id="winStars"></div>
+    <div class="row">
+      <button class="btn round big" id="againBtn" aria-label="Újra">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1d3a2a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/></svg>
+      </button>
+      <button class="btn round big" id="nextBtn" aria-label="Következő pálya" style="background:var(--leaf)">
+        <svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" fill="#fffaf0" stroke="#1d3a2a" stroke-width="2.2" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="qrScreen" hidden>
+  <div class="panel rel">
+    <button class="btn round" id="closeQr" aria-label="Bezárás">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1d3a2a" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <h2 style="font-size:34px">Küldd el!</h2>
+    <img id="qrImg" alt="QR kód a játék linkjével">
+    <p class="small" id="qrHint">Olvasd be a QR kódot egy másik telefonnal vagy tablettel. Mentéshez nyomd hosszan a képet, vagy használd a Letöltés gombot.</p>
+    <div class="url" id="qrUrl"></div>
+    <div class="row">
+      <button class="btn pill" id="copyBtn">Link másolása</button>
+      <button class="btn pill" id="dlBtn">QR letöltése</button>
+      <button class="btn pill" id="shareBtn" hidden>Megosztás</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function(){
+"use strict";
+/* ====== Megosztási link: ide kerül a játék nyilvános címe ====== */
+const SHARE_URL = "https://claude.ai/artifact/DKSTU7zjmRRDpJMXUvZLgK";
+function shareUrl(){ return SHARE_URL || location.href.split('#')[0]; }
+
+const TAU = Math.PI*2, MAXJ = 175, WORLD_W = 400;
+const C = {outline:'#1d3a2a', frog:'#86dc5c', frogMid:'#5cbf3c', frogDark:'#3b8f2a', belly:'#c9f39e', pad:'#6cc24a', padDark:'#3f8f2e', padLight:'#9be070',
+  water1:'#6ad3ec', water2:'#3ba7d3', sand:'#f3dc9b', grass:'#8fd85e', grass2:'#6cbf41', pink:'#ff7aa8', pinkL:'#ffc2d6', sun:'#ffd23f'};
+
+const cv = document.getElementById('game'), ctx = cv.getContext('2d');
+let cssW, cssH, dpr, scale, offX, viewH;
+function resize(){
+  dpr = Math.min(window.devicePixelRatio||1, 2.5);
+  cssW = window.innerWidth; cssH = window.innerHeight;
+  cv.width = Math.round(cssW*dpr); cv.height = Math.round(cssH*dpr);
+  scale = Math.min(cssW/WORLD_W, cssH/560);
+  offX = (cssW - WORLD_W*scale)/2; viewH = cssH/scale;
+}
+window.addEventListener('resize', resize); resize();
+
+const rnd = i => { const s = Math.sin(i*127.1+311.7)*43758.5453; return s - Math.floor(s); };
+const lerp = (a,b,t) => a+(b-a)*t;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const dist = (a,b,c,d) => Math.hypot(a-c, b-d);
+function store(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v);}catch(e){ return null; } }
+
+/* ====== Pályák (előre megtervezve): x, távolság az előzőtől, sugár, extrák ====== */
+const LEVELS = [
+  [[200,0,62],[135,120,54],[235,118,54],[165,118,54,{fly:1}],[255,115,52,{flower:1}],[175,120,52],[105,112,52,{fly:1}],[190,118,52],[275,115,52,{fly:1,flower:1}],[200,135,76,{goal:1}]],
+  [[200,0,62],[140,120,54,{fly:1}],[200,125,52,{move:40,spd:.7}],[290,118,52],[210,120,52,{move:45,spd:.6,fly:1}],[120,118,52,{flower:1}],[190,120,52,{move:45,spd:.8}],[270,118,52,{fly:1}],[180,122,52,{move:45,spd:.7}],[110,118,52,{fly:1}],[200,135,76,{goal:1}]],
+  [[200,0,62],[260,120,54],[180,122,50,{turtle:1}],[100,118,52,{fly:1}],[180,120,50,{move:45,spd:.8}],[270,118,50,{turtle:1,fly:1}],[200,120,52,{flower:1}],[120,120,50,{move:40,spd:.9}],[200,120,50,{turtle:1}],[285,118,52,{fly:1}],[200,135,76,{goal:1}]]
+];
+
+let level = 0, pads = [], time = 0, camY = 0, flies = 0, totalFlies = 0;
+let particles = [], ripples = [], idleT = 0, winT = 0;
+const frog = {x:0,y:0,ang:0,state:'idle',pad:null,relX:0,relY:0,jt:0,jdur:.6,fx:0,fy:0,tx:0,ty:0,trick:'normal',spinDir:1,
+  sinkT:0,popT:0,puff:0,tongue:0,tongueTo:null,lastSafe:null,blink:0};
+
+function buildLevel(n){
+  level = n; pads = []; let y = 0; flies = 0; totalFlies = 0;
+  LEVELS[n].forEach((d,i) => {
+    y -= d[1]; const o = d[3]||{};
+    const p = {i, bx:d[0], by:y, r:d[2], cx:d[0], cy:y, rot:rnd(i*7+n)*TAU, move:o.move||0, spd:o.spd||0, ph:rnd(i+n*13)*TAU,
+      fly:!!o.fly, flyGot:false, flower:!!o.flower, goal:!!o.goal, turtle:!!o.turtle, bob:0};
+    if(p.fly) totalFlies++;
+    pads.push(p);
+  });
+  const p0 = pads[0];
+  Object.assign(frog, {x:p0.cx, y:p0.cy, ang:0, state:'idle', pad:p0, relX:0, relY:0, lastSafe:p0, puff:0, tongue:0});
+  camY = frog.y - viewH*0.68; particles = []; ripples = []; idleT = 0;
+  updateHud();
+}
+function padPos(p,t){
+  if(!p.move) return {x:p.bx, y:p.by};
+  return {x:p.bx + Math.sin(t*p.spd + p.ph)*p.move, y:p.by};
+}
+function turtleCycle(p,t){ return ((t*0.17 + p.ph/TAU) % 1 + 1) % 1; } // ~6 mp-es ciklus
+function solid(p,t){ if(!p.turtle) return true; const c = turtleCycle(p,t); return c < 0.74 || c > 0.95; }
+function turtleSink(p,t){ // 0 = fenn, 1 = teljesen lent
+  const c = turtleCycle(p,t);
+  if(c < 0.62) return 0; if(c < 0.74) return (c-0.62)/0.12*0.6; if(c < 0.9) return 1; return 1-(c-0.9)/0.1;
+}
+
+/* ====== Hang ====== */
+let AC = null, master, musicGain, sfxGain, musicOn = store('ugri-zene') !== 'off', musicTimer = null, nextNoteT = 0, step = 0;
+function initAudio(){
+  if(AC){ if(AC.state === 'suspended') AC.resume(); return; }
+  const A = window.AudioContext || window.webkitAudioContext; if(!A) return;
+  AC = new A(); master = AC.createGain(); master.gain.value = 0.9; master.connect(AC.destination);
+  musicGain = AC.createGain(); musicGain.gain.value = musicOn ? 0.16 : 0; musicGain.connect(master);
+  sfxGain = AC.createGain(); sfxGain.gain.value = 0.85; sfxGain.connect(master);
+  startMusic();
+}
+function env(g, t, a, peak, d){ g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+a); g.gain.exponentialRampToValueAtTime(0.0001, t+a+d); }
+function tone(f, t, dur, type, vol, out, f2){
+  const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(f, t);
+  if(f2) o.frequency.exponentialRampToValueAtTime(f2, t+dur);
+  env(g, t, 0.01, vol, dur); o.connect(g); g.connect(out||sfxGain); o.start(t); o.stop(t+dur+0.05);
+}
+function noiseBuf(){ if(noiseBuf.b) return noiseBuf.b; const b = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; return noiseBuf.b = b; }
+function sfxBoing(pitch){
+  if(!AC) return; const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), l = AC.createOscillator(), lg = AC.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(170*pitch, t); o.frequency.exponentialRampToValueAtTime(560*pitch, t+0.12); o.frequency.exponentialRampToValueAtTime(300*pitch, t+0.4);
+  l.frequency.value = 16; lg.gain.value = 45*pitch; l.connect(lg); lg.connect(o.frequency);
+  env(g, t, 0.01, 0.45, 0.4); o.connect(g); g.connect(sfxGain); o.start(t); l.start(t); o.stop(t+0.5); l.stop(t+0.5);
+}
+function sfxWhee(){ if(!AC) return; const t = AC.currentTime; tone(500, t+0.05, 0.35, 'triangle', 0.18, null, 1400); }
+function sfxPlop(){ if(!AC) return; const t = AC.currentTime; tone(420, t, 0.12, 'sine', 0.35, null, 140); }
+function sfxSplash(){
+  if(!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf(); f.type = 'lowpass'; f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(300, t+0.6);
+  env(g, t, 0.01, 0.6, 0.6); s.connect(f); f.connect(g); g.connect(sfxGain); s.start(t); s.stop(t+0.7);
+  tone(300, t, 0.25, 'sine', 0.3, null, 90);
+}
+function sfxSqueak(){ // visító béka: "víííí-ííí!"
+  if(!AC) return; const t = AC.currentTime + 0.05;
+  const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), l = AC.createOscillator(), lg = AC.createGain();
+  o.type = 'sawtooth'; f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 1.6;
+  o.frequency.setValueAtTime(800, t); o.frequency.exponentialRampToValueAtTime(2000, t+0.14);
+  o.frequency.exponentialRampToValueAtTime(1500, t+0.32); o.frequency.exponentialRampToValueAtTime(2300, t+0.48); o.frequency.exponentialRampToValueAtTime(950, t+0.85);
+  l.frequency.value = 26; lg.gain.value = 110; l.connect(lg); lg.connect(o.frequency);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t+0.03); g.gain.setValueAtTime(0.5, t+0.6); g.gain.exponentialRampToValueAtTime(0.0001, t+0.9);
+  o.connect(f); f.connect(g); g.connect(sfxGain); o.start(t); l.start(t); o.stop(t+0.95); l.stop(t+0.95);
+}
+function sfxCroak(){ // brekk
+  if(!AC) return; const t = AC.currentTime;
+  [0, 0.2].forEach(d => {
+    const o = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), am = AC.createOscillator(), amg = AC.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(150, t+d); o.frequency.linearRampToValueAtTime(115, t+d+0.16);
+    f.type = 'lowpass'; f.frequency.value = 900; am.type = 'square'; am.frequency.value = 22; amg.gain.value = 0.12; am.connect(amg); amg.connect(g.gain);
+    env(g, t+d, 0.01, 0.22, 0.16); o.connect(f); f.connect(g); g.connect(sfxGain); o.start(t+d); am.start(t+d); o.stop(t+d+0.22); am.stop(t+d+0.22);
+  });
+}
+function sfxYum(){ if(!AC) return; const t = AC.currentTime; tone(660, t, 0.09, 'triangle', 0.3); tone(990, t+0.09, 0.16, 'triangle', 0.3); }
+function sfxPop(){ if(!AC) return; const t = AC.currentTime; tone(300, t, 0.1, 'sine', 0.4, null, 900); }
+function sfxWin(){ if(!AC) return; const t = AC.currentTime; [523,659,784,1047,784,1047].forEach((f,i) => tone(f, t+i*0.12, 0.25, 'triangle', 0.3)); }
+
+const MEL = [72,0,76,79, 76,0,74,72, 74,0,76,74, 72,0,67,0, 69,0,72,74, 76,0,79,76, 74,72,74,76, 72,0,0,0];
+const BAS = [48,55,53,48,57,53,55,48];
+const mtof = m => 440*Math.pow(2,(m-69)/12);
+function startMusic(){
+  if(musicTimer) return; nextNoteT = AC.currentTime + 0.1;
+  musicTimer = setInterval(() => {
+    while(nextNoteT < AC.currentTime + 0.3){
+      const sp = 60/116/2, m = MEL[step%32];
+      if(m){ tone(mtof(m), nextNoteT, 0.22, 'triangle', 0.5, musicGain); tone(mtof(m+12), nextNoteT, 0.12, 'sine', 0.12, musicGain); }
+      if(step%4 === 0) tone(mtof(BAS[(step/4|0)%8]), nextNoteT, 0.4, 'sine', 0.55, musicGain);
+      if(step%4 === 2) tone(mtof(BAS[(step/4|0)%8]+7), nextNoteT, 0.18, 'sine', 0.25, musicGain);
+      nextNoteT += sp; step++;
+    }
+  }, 90);
+}
+function setMusic(on){
+  musicOn = on; store('ugri-zene', on ? 'on' : 'off');
+  document.getElementById('musicOn').hidden = !on; document.getElementById('musicOff').hidden = on;
+  if(AC) musicGain.gain.setTargetAtTime(on ? 0.16 : 0, AC.currentTime, 0.1);
+}
+setMusic(musicOn);
+document.addEventListener('visibilitychange', () => { if(!AC) return; if(document.hidden) AC.suspend(); else AC.resume(); });
+
+/* ====== Részecskék ====== */
+function burst(x,y,n,colors,spd,size,grav){
+  for(let i=0;i<n;i++){ const a = Math.random()*TAU, s = spd*(0.4+Math.random()*0.8);
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,decay:0.8+Math.random()*0.8,color:colors[i%colors.length],size:size*(0.6+Math.random()*0.8),grav:grav||0,rot:Math.random()*TAU,kind:'dot'}); }
+}
+function addRipple(x,y,max,w){ ripples.push({x,y,r:4,max:max||60,life:1,w:w||3}); }
+
+/* ====== Játékmenet ====== */
+const TRICKS = ['normal','spin','flip','wiggle','big','normal'];
+function startJump(tx,ty,dur){
+  frog.state = 'jump'; frog.jt = 0; frog.jdur = dur; frog.fx = frog.x; frog.fy = frog.y; frog.tx = tx; frog.ty = ty;
+  frog.trick = TRICKS[Math.floor(Math.random()*TRICKS.length)]; frog.spinDir = Math.random() < 0.5 ? -1 : 1;
+  frog.ang = Math.atan2(ty-frog.y, tx-frog.x) + Math.PI/2; frog.pad = null; idleT = 0;
+  sfxBoing(0.85 + Math.random()*0.5); if(frog.trick === 'spin' || frog.trick === 'big') sfxWhee();
+  addRipple(frog.fx, frog.fy, 40, 2);
+}
+function land(){
+  let hit = null;
+  for(const p of pads){ if(dist(frog.x,frog.y,p.cx,p.cy) < p.r*0.95 + 8 && solid(p,time)){ hit = p; break; } }
+  if(!hit){ startSink(); return; }
+  frog.state = 'idle'; frog.pad = hit; frog.relX = clamp(frog.x-hit.cx, -hit.r*0.45, hit.r*0.45); frog.relY = clamp(frog.y-hit.cy, -hit.r*0.45, hit.r*0.45);
+  hit.bob = 1; addRipple(hit.cx, hit.cy, hit.r+30, 3); sfxPlop();
+  burst(frog.x, frog.y, 8, ['#ffffff','#d8f6ff'], 90, 3.5, 0);
+  if(!hit.turtle) frog.lastSafe = hit;
+  if(Math.random() < 0.35) setTimeout(sfxCroak, 150);
+  if(hit.fly && !hit.flyGot){ hit.flyGot = true; frog.tongue = 1; frog.tongueTo = flyPos(hit); flies++; sfxYum();
+    burst(frog.tongueTo.x, frog.tongueTo.y, 14, [C.sun,'#fff3a8','#ffffff'], 120, 5, 0); updateHud(); }
+  if(hit.goal) startWin();
+}
+function startSink(){
+  frog.state = 'sink'; frog.sinkT = 0; frog.pad = null; sfxSplash(); sfxSqueak();
+  for(let i=0;i<4;i++) setTimeout(() => addRipple(frog.x, frog.y, 70+i*15, 3), i*180);
+  burst(frog.x, frog.y, 26, ['#ffffff','#bfefff','#8fdcf3'], 220, 6, 260);
+}
+function respawn(){
+  const p = frog.lastSafe || pads[0];
+  Object.assign(frog, {state:'pop', popT:0, pad:p, relX:0, relY:0, x:p.cx, y:p.cy}); p.bob = 1; sfxPop(); setTimeout(sfxCroak, 250);
+  burst(p.cx, p.cy, 16, [C.sun,'#ffffff',C.pinkL], 140, 5, 0);
+}
+function startWin(){
+  frog.state = 'win'; winT = 0; sfxWin(); setTimeout(sfxCroak, 500);
+  store('ugri-szint', String(Math.min(level+1, LEVELS.length-1)));
+}
+function flyPos(p){ return {x:p.cx + Math.cos(time*2+p.i)*p.r*0.55, y:p.cy - p.r*0.35 + Math.sin(time*3.1+p.i)*8}; }
+
+function onTap(sx, sy){
+  initAudio(); if(frog.state !== 'idle') return;
+  const wx = (sx-offX)/scale, wy = sy/scale + camY;
+  if(dist(wx,wy,frog.x,frog.y) < 30){ frog.puff = 1; sfxCroak(); return; }
+  const dur = 0.62; let best = null, bd = 1e9;
+  for(const p of pads){
+    const pp = padPos(p, time+dur), dTap = dist(wx,wy,pp.x,pp.y), dF = dist(frog.x,frog.y,pp.x,pp.y);
+    if(dTap < p.r+50 && dF < MAXJ + p.r*0.6 && dTap < bd){ bd = dTap; best = pp; }
+  }
+  let tx, ty;
+  if(best){ tx = best.x; ty = best.y; }
+  else { const dx = wx-frog.x, dy = wy-frog.y, d = Math.hypot(dx,dy); if(d < 8) return; const m = Math.min(d, MAXJ); tx = frog.x+dx/d*m; ty = frog.y+dy/d*m; }
+  startJump(clamp(tx, 30, 370), ty, dur);
+}
+cv.addEventListener('pointerdown', e => { e.preventDefault(); onTap(e.clientX, e.clientY); });
+
+function update(dt){
+  time += dt; idleT += dt;
+  for(const p of pads){ const pp = padPos(p,time); p.cx = pp.x; p.cy = pp.y; p.bob = Math.max(0, p.bob - dt*2.2); }
+  frog.puff = Math.max(0, frog.puff - dt*1.6); frog.tongue = Math.max(0, frog.tongue - dt*4);
+  frog.blink = (time % 3.7) < 0.12 ? 1 : 0;
+  if(frog.state === 'idle' || frog.state === 'win' || frog.state === 'pop'){
+    if(frog.pad){ frog.x = frog.pad.cx + frog.relX; frog.y = frog.pad.cy + frog.relY; }
+    if(frog.state === 'idle' && frog.pad && frog.pad.turtle && !solid(frog.pad,time)) startSink();
+    if(frog.state === 'pop'){ frog.popT += dt; if(frog.popT > 0.55) frog.state = 'idle'; }
+    if(frog.state === 'win'){ winT += dt;
+      if(Math.random() < dt*14) particles.push({x:frog.x+(Math.random()-0.5)*300, y:camY-10, vx:(Math.random()-0.5)*60, vy:60+Math.random()*80, life:1, decay:0.25, color:[C.sun,C.pink,'#7ad3ff','#ffffff','#b48cff'][Math.random()*5|0], size:5+Math.random()*4, grav:20, rot:Math.random()*TAU, kind:'conf'});
+      if(winT > 1.6 && document.getElementById('winScreen').hidden) showWin();
+    }
+  } else if(frog.state === 'jump'){
+    frog.jt += dt; const k = Math.min(1, frog.jt/frog.jdur), e = k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+    frog.x = lerp(frog.fx, frog.tx, e*0.3 + k*0.7); frog.y = lerp(frog.fy, frog.ty, e*0.3 + k*0.7);
+    if(k >= 1) land();
+  } else if(frog.state === 'sink'){
+    frog.sinkT += dt;
+    if(Math.random() < dt*10) particles.push({x:frog.x+(Math.random()-0.5)*20, y:frog.y+(Math.random()-0.5)*20, vx:0, vy:-10, life:1, decay:1.2, color:'#ffffff', size:3+Math.random()*4, grav:0, kind:'bubble'});
+    if(frog.sinkT > 1.5) respawn();
+  }
+  for(const q of particles){ q.x += q.vx*dt; q.y += q.vy*dt; q.vy += q.grav*dt; q.vx *= (1-dt*2); if(q.kind!=='conf') q.vy *= (1-dt*2); q.life -= q.decay*dt; q.rot += dt*5; }
+  particles = particles.filter(q => q.life > 0);
+  for(const r of ripples){ r.r += (r.max - r.r)*dt*2.5 + dt*10; r.life -= dt*1.3; }
+  ripples = ripples.filter(r => r.life > 0);
+  const target = frog.y - viewH*0.66;
+  camY += (target - camY) * Math.min(1, dt*3.5);
+}
+
+/* ====== Rajzolás ====== */
+function ell(c,x,y,rx,ry,rot){ c.beginPath(); c.ellipse(x,y,rx,ry,rot||0,0,TAU); }
+function fillStroke(c,fill,lw){ c.fillStyle = fill; c.fill(); c.lineWidth = lw||2.4; c.strokeStyle = C.outline; c.stroke(); }
+
+function drawFrog(c, x, y, ang, sc, o){
+  o = o || {}; const air = o.air||0, puff = o.puff||0, flail = o.flail||0, t = o.t||0;
+  const col = o.color || C.frog, mid = o.mid || C.frogMid, dark = o.dark || C.frogDark;
+  c.save(); c.translate(x,y); c.rotate(ang); c.scale(sc*(o.sx||1), sc*(o.sy||1)); c.lineJoin = 'round'; c.lineCap = 'round';
+  // hátsó lábak
+  for(const s of [-1,1]){
+    c.save(); c.scale(s,1);
+    const w = flail ? Math.sin(t*30 + s)*0.5 : 0;
+    c.save(); c.translate(13,6); c.rotate(-0.35 + air*0.55 + w);
+    ell(c, 4, 8 + air*6, 7, 13 + air*4); fillStroke(c, mid);
+    ell(c, 6, 21 + air*14, 5, 9 + air*3, 0.1); fillStroke(c, mid);
+    for(const tx of [-3,3,9]){ ell(c, 6+tx, 30 + air*18, 3.2, 3.2); fillStroke(c, col, 2); }
+    c.restore();
+    // első lábak
+    c.save(); c.translate(13,-12); c.rotate(0.55 - air*0.35 - w);
+    ell(c, 2, -4, 4.5, 8); fillStroke(c, mid);
+    for(const tx of [-3,1.5,6]){ ell(c, tx+2, -12, 2.6, 2.6); fillStroke(c, col, 1.8); }
+    c.restore();
+    c.restore();
+  }
+  // test
+  const bw = 19 + puff*6, bh = 23 + puff*3;
+  ell(c, 0, 2, bw, bh);
+  const g = c.createRadialGradient(-5,-6,3,0,2,bh); g.addColorStop(0, '#b6f08a'); g.addColorStop(0.6, col); g.addColorStop(1, mid);
+  fillStroke(c, g, 2.8);
+  // pöttyök
+  c.fillStyle = dark; c.globalAlpha = 0.55;
+  ell(c, -7, 8, 3.5, 4.5, 0.3); c.fill(); ell(c, 6, 12, 3, 3.5); c.fill(); ell(c, 2, 2, 2.4, 2.4); c.fill(); ell(c, -2, 16, 2.2, 2.6); c.fill();
+  c.globalAlpha = 1;
+  // pír
+  c.fillStyle = 'rgba(255,120,150,.55)'; ell(c, -12, -7, 4.5, 3); c.fill(); ell(c, 12, -7, 4.5, 3); c.fill();
+  // mosoly
+  c.beginPath(); c.lineWidth = 2.4; c.strokeStyle = C.outline;
+  if(o.oh){ ell(c, 0, -10, 4, 5); c.fillStyle = '#7a2a3a'; c.fill(); c.stroke(); }
+  else { c.arc(0, -16, 8, 0.2*Math.PI, 0.8*Math.PI); c.stroke(); }
+  // nyelv
+  if(o.tongue && o.tongueTo){
+    c.save(); c.rotate(-ang); c.scale(1/(sc*(o.sx||1)), 1/(sc*(o.sy||1)));
+    c.strokeStyle = '#ff5f87'; c.lineWidth = 6; c.beginPath(); c.moveTo(0,0);
+    c.lineTo((o.tongueTo.x-x)*o.tongue, (o.tongueTo.y-y)*o.tongue); c.stroke(); c.restore();
+  }
+  // szemek
+  const er = 8 + air*2.5 + (o.oh?2:0);
+  for(const s of [-1,1]){
+    ell(c, s*10, -19, er, er); fillStroke(c, col, 2.6);
+    ell(c, s*10, -20, er*0.72, er*0.72); fillStroke(c, '#ffffff', 2);
+    if(o.blink){ c.beginPath(); c.moveTo(s*10-er*0.6, -20); c.lineTo(s*10+er*0.6, -20); c.lineWidth = 2.6; c.stroke(); }
+    else { ell(c, s*10 + (o.lookX||0), -21 + (o.lookY||0), er*0.38, er*0.42); c.fillStyle = '#16221a'; c.fill();
+      ell(c, s*10 + 1.5, -23.5, er*0.14, er*0.14); c.fillStyle = '#fff'; c.fill(); }
+  }
+  c.restore();
+}
+
+function drawPad(c, p){
+  const sink = p.turtle ? turtleSink(p,time) : 0;
+  if(p.turtle){ drawTurtle(c, p, sink); return; }
+  const bob = 1 - Math.sin(p.bob*Math.PI*3)*0.05*p.bob;
+  c.save(); c.translate(p.cx, p.cy); c.scale(bob, bob);
+  c.fillStyle = 'rgba(10,60,90,.18)'; ell(c, 5, 7, p.r, p.r*0.96); c.fill();
+  c.save(); c.rotate(p.rot);
+  c.beginPath(); c.moveTo(0,0); c.arc(0,0,p.r, 0.32, TAU-0.04); c.closePath();
+  const g = c.createRadialGradient(-p.r*0.3,-p.r*0.3,4,0,0,p.r); g.addColorStop(0, C.padLight); g.addColorStop(1, p.goal ? '#5fb84a' : C.pad);
+  c.fillStyle = g; c.fill(); c.lineWidth = 3; c.strokeStyle = C.outline; c.lineJoin = 'round'; c.stroke();
+  c.strokeStyle = C.padDark; c.lineWidth = 1.8; c.globalAlpha = 0.6;
+  for(let i=0;i<9;i++){ const a = 0.5 + i*(TAU-0.6)/9; c.beginPath(); c.moveTo(Math.cos(a)*5, Math.sin(a)*5); c.quadraticCurveTo(Math.cos(a+0.1)*p.r*0.5, Math.sin(a+0.1)*p.r*0.5, Math.cos(a)*p.r*0.82, Math.sin(a)*p.r*0.82); c.stroke(); }
+  c.globalAlpha = 1; c.restore();
+  if(p.flower) drawFlower(c, -p.r*0.5, p.r*0.45, 11);
+  if(p.goal){ drawFlower(c, -p.r*0.62, -p.r*0.15, 17); drawFlower(c, p.r*0.65, p.r*0.3, 13); }
+  c.restore();
+}
+function drawFlower(c,x,y,s){
+  c.save(); c.translate(x,y);
+  for(let i=0;i<7;i++){ c.save(); c.rotate(i*TAU/7 + time*0.2); ell(c, 0, -s*0.62, s*0.34, s*0.62); c.fillStyle = i%2 ? C.pink : C.pinkL; c.fill(); c.lineWidth = 1.8; c.strokeStyle = C.outline; c.stroke(); c.restore(); }
+  ell(c, 0, 0, s*0.32, s*0.32); fillStroke(c, C.sun, 1.8); c.restore();
+}
+function drawTurtle(c, p, sink){
+  const shake = (turtleCycle(p,time) > 0.5 && turtleCycle(p,time) < 0.74) ? Math.sin(time*40)*1.5 : 0;
+  c.save(); c.translate(p.cx + shake, p.cy); c.rotate(-0.15);
+  const s = p.r/48 * (1 - sink*0.25); c.scale(s, s); c.globalAlpha = 1 - sink*0.75;
+  const pad = p.bob ? 1 - Math.sin(p.bob*Math.PI*3)*0.05*p.bob : 1; c.scale(pad,pad);
+  c.fillStyle = 'rgba(10,60,90,.18)'; ell(c, 5, 7, 44, 48); c.fill();
+  const paddle = Math.sin(time*4 + p.ph)*0.25;
+  for(const sx of [-1,1]) for(const sy of [-1,1]){ c.save(); c.translate(sx*34, sy*24); c.rotate(sx*sy*(0.6+paddle)); ell(c, 0, 0, 14, 8); fillStroke(c, '#9fd36b', 2.6); c.restore(); }
+  ell(c, 0, -50, 13, 14); fillStroke(c, '#9fd36b', 2.6);
+  ell(c, -5, -56, 2.6, 2.6); c.fillStyle = C.outline; c.fill(); ell(c, 5, -56, 2.6, 2.6); c.fill();
+  ell(c, 0, 0, 42, 46); const g = c.createRadialGradient(-10,-12,5,0,0,46); g.addColorStop(0,'#d8a653'); g.addColorStop(1,'#a06b2c'); fillStroke(c, g, 3);
+  c.strokeStyle = '#6e4519'; c.lineWidth = 2.2;
+  c.beginPath(); for(let i=0;i<6;i++){ const a = i*TAU/6; c.lineTo(Math.cos(a)*15, Math.sin(a)*15); } c.closePath(); c.stroke();
+  for(let i=0;i<6;i++){ const a = i*TAU/6; c.beginPath(); c.moveTo(Math.cos(a)*15, Math.sin(a)*15); c.lineTo(Math.cos(a)*36, Math.sin(a)*40); c.stroke(); }
+  c.globalAlpha = 1; c.restore();
+  if(sink > 0.3 && Math.random() < 0.25) particles.push({x:p.cx+(Math.random()-0.5)*p.r, y:p.cy+(Math.random()-0.5)*p.r, vx:0, vy:-8, life:1, decay:1.5, color:'#ffffff', size:3+Math.random()*3, grav:0, kind:'bubble'});
+}
+function drawFly(c, p){
+  if(!p.fly || p.flyGot) return; const f = flyPos(p);
+  c.save(); c.translate(f.x, f.y);
+  c.fillStyle = 'rgba(0,40,60,.15)'; ell(c, 4, 14, 7, 4); c.fill();
+  const w = Math.sin(time*60)*0.5;
+  c.globalAlpha = 0.85; ell(c, -6, -2, 8, 4.5, -0.5+w); fillStroke(c, '#e4f7ff', 1.6); ell(c, 6, -2, 8, 4.5, 0.5-w); fillStroke(c, '#e4f7ff', 1.6); c.globalAlpha = 1;
+  ell(c, 0, 2, 4.5, 7); fillStroke(c, '#2b2b38', 1.8);
+  ell(c, -2.2, -4, 1.8, 1.8); c.fillStyle = '#ff5b5b'; c.fill(); ell(c, 2.2, -4, 1.8, 1.8); c.fill();
+  c.restore();
+}
+function bankEdge(y, side){ return side < 0 ? 16 + Math.sin(y*0.03)*7 + Math.sin(y*0.071)*5 : 384 - Math.sin(y*0.027+2)*7 - Math.sin(y*0.065)*5; }
+function drawBanks(c, top, bot){
+  const leftEdge = -offX/scale - 5, rightEdge = WORLD_W + offX/scale + 5;
+  for(const side of [-1,1]){
+    const outer = side < 0 ? leftEdge : rightEdge;
+    c.beginPath(); c.moveTo(outer, top);
+    for(let y = top; y <= bot; y += 12) c.lineTo(bankEdge(y,side) - side*6, y);
+    c.lineTo(outer, bot); c.closePath(); c.fillStyle = C.sand; c.fill();
+    c.beginPath(); c.moveTo(outer, top);
+    for(let y = top; y <= bot; y += 12) c.lineTo(bankEdge(y,side), y);
+    c.lineTo(outer, bot); c.closePath(); c.fillStyle = C.grass; c.fill(); c.lineWidth = 3; c.strokeStyle = C.outline; c.stroke();
+    // nád, fű, virág
+    const start = Math.floor(top/55), end = Math.ceil(bot/55);
+    for(let i=start;i<=end;i++){
+      const y = i*55 + rnd(i*3+side)*30, r = rnd(i*5+side*9), ex = bankEdge(y,side);
+      if(r < 0.35) drawReed(c, ex - side*8, y, side);
+      else if(r < 0.6) drawFlower(c, ex - side*(14 + rnd(i)*20), y, 7);
+      else { c.strokeStyle = C.grass2; c.lineWidth = 3; c.beginPath(); for(let k=-1;k<=1;k++){ c.moveTo(ex - side*(12+k*6), y); c.lineTo(ex - side*(14+k*9), y - 12 - Math.abs(k)*-3); } c.stroke(); }
+    }
+  }
+}
+function drawReed(c,x,y,side){
+  c.save(); c.translate(x,y);
+  c.strokeStyle = '#4e9a35'; c.lineWidth = 3; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(0,0); c.quadraticCurveTo(-side*4, -14, -side*2, -26); c.stroke();
+  ell(c, -side*2, -30, 4, 9, -side*0.2); fillStroke(c, '#8a5a2b', 2);
+  c.restore();
+}
+function drawWater(c, top, bot){
+  const s = Math.floor(top/70), e = Math.ceil(bot/70);
+  c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 3; c.lineCap = 'round';
+  for(let i=s;i<=e;i++){
+    const x = 40 + rnd(i*11)*320 + Math.sin(time*0.8 + i)*8, y = i*70 + rnd(i*17)*40;
+    c.beginPath(); c.moveTo(x-14, y); c.quadraticCurveTo(x-7, y-5, x, y); c.quadraticCurveTo(x+7, y+5, x+14, y); c.stroke();
+  }
+  // halak
+  for(let i=Math.floor(top/260); i<=Math.ceil(bot/260); i++){
+    const dir = rnd(i*23) < 0.5 ? -1 : 1, sp = 14 + rnd(i*29)*12, x = ((time*sp*dir + rnd(i*31)*600) % 520 + 520) % 520 - 60, y = i*260 + rnd(i*37)*120;
+    c.save(); c.translate(x, y + Math.sin(time*2+i)*4); c.scale(dir, 1); c.globalAlpha = 0.45;
+    const wag = Math.sin(time*8 + i)*0.35;
+    c.beginPath(); c.moveTo(-14,0); c.lineTo(-24, -7 + wag*6); c.lineTo(-24, 7 + wag*6); c.closePath(); c.fillStyle = '#ff9a3c'; c.fill();
+    ell(c, 0, 0, 16, 7); c.fillStyle = '#ff9a3c'; c.fill(); ell(c, 4, -1, 5, 3); c.fillStyle = '#fff2e0'; c.fill();
+    c.globalAlpha = 1; c.restore();
+  }
+}
+
+function draw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const g = ctx.createLinearGradient(0,0,0,cssH); g.addColorStop(0, C.water1); g.addColorStop(1, C.water2);
+  ctx.fillStyle = g; ctx.fillRect(0,0,cssW,cssH);
+  ctx.save(); ctx.translate(offX, 0); ctx.scale(scale, scale); ctx.translate(0, -camY);
+  const top = camY - 60, bot = camY + viewH + 60;
+  drawWater(ctx, top, bot);
+  drawBanks(ctx, top, bot);
+  for(const r of ripples){ ctx.globalAlpha = Math.max(0, r.life)*0.8; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = r.w; ell(ctx, r.x, r.y, r.r, r.r*0.85); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  // tipp: a következő levél lüktet, ha a gyerek sokáig nem koppint
+  const cur = frog.pad || frog.lastSafe; const next = cur ? pads[cur.i+1] : null;
+  if(next && frog.state === 'idle' && idleT > 2.5){
+    const pulse = (Math.sin(time*5)+1)/2;
+    ctx.strokeStyle = 'rgba(255,240,120,' + (0.5+pulse*0.5) + ')'; ctx.lineWidth = 6 + pulse*3;
+    ell(ctx, next.cx, next.cy, next.r + 10 + pulse*8, next.r + 10 + pulse*8); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.8)';
+    for(let k=1;k<4;k++){ const t = ((k/4) + time*0.6) % 1; ell(ctx, lerp(frog.x, next.cx, t), lerp(frog.y, next.cy, t), 4, 4); ctx.fill(); }
+  }
+  for(const p of pads) if(p.turtle) drawPad(ctx, p);
+  for(const p of pads) if(!p.turtle && p.cy > top - 100 && p.cy < bot + 100) drawPad(ctx, p);
+  // barát béka a célban
+  const goal = pads[pads.length-1];
+  const fj = frog.state === 'win' ? Math.abs(Math.sin(winT*6))*0.35 : Math.abs(Math.sin(time*2))*0.06;
+  drawFrog(ctx, goal.cx + 30, goal.cy - 22, -0.3 + Math.sin(time*1.5)*0.1, 0.9 + fj, {color:'#ffb347', mid:'#f28c28', dark:'#c4631a', air:fj*2, blink:(time%4.3)<0.12});
+  for(const p of pads) drawFly(ctx, p);
+  // béka
+  let fsc = 1, sx = 1, sy = 1, ang = frog.ang, air = 0, alpha = 1, oh = false, flail = 0, jumpH = 0;
+  if(frog.state === 'jump'){
+    const k = Math.min(1, frog.jt/frog.jdur), h = Math.sin(Math.PI*k); jumpH = h; air = h;
+    fsc = 1 + h*(frog.trick === 'big' ? 0.95 : 0.55);
+    if(frog.trick === 'spin') ang += k*TAU*frog.spinDir;
+    if(frog.trick === 'flip') sx = Math.cos(k*TAU);
+    if(frog.trick === 'wiggle') ang += Math.sin(k*Math.PI*6)*0.45;
+    if(k < 0.12){ sy = 0.8 + k; sx *= 1.15; }
+  } else if(frog.state === 'sink'){
+    const t = frog.sinkT; oh = true; flail = 1;
+    if(t < 0.35){ fsc = 1 + Math.sin(t/0.35*Math.PI)*0.35; }
+    else { fsc = Math.max(0.3, 1 - (t-0.35)*0.7); alpha = Math.max(0, 1 - (t-0.35)*0.9); }
+  } else if(frog.state === 'pop'){
+    const t = frog.popT/0.55; fsc = t < 1 ? Math.sin(t*Math.PI*0.5)*(1 + Math.sin(t*Math.PI)*0.4) : 1;
+  } else if(frog.state === 'win'){
+    jumpH = Math.abs(Math.sin(winT*6)); fsc = 1 + jumpH*0.35; air = jumpH; ang = Math.sin(winT*3)*0.4;
+  } else {
+    const br = Math.sin(time*3)*0.03; sx = 1 + br; sy = 1 - br;
+  }
+  // árnyék
+  if(frog.state !== 'sink'){ ctx.fillStyle = 'rgba(10,50,70,' + (0.28 - jumpH*0.12) + ')'; ell(ctx, frog.x + 4 + jumpH*16, frog.y + 8 + jumpH*20, 24*(1 - jumpH*0.3), 26*(1 - jumpH*0.3)); ctx.fill(); }
+  ctx.globalAlpha = alpha;
+  const lookX = next ? clamp((next.cx - frog.x)/60, -1.5, 1.5) : 0;
+  drawFrog(ctx, frog.x, frog.y, ang, fsc * 1.05, {sx, sy, air, puff:Math.sin(frog.puff*Math.PI)*1, oh, flail, t:time, blink:frog.blink && frog.state==='idle', lookX, lookY:-0.5, tongue:frog.tongue, tongueTo:frog.tongueTo});
+  ctx.globalAlpha = 1;
+  // részecskék
+  for(const q of particles){
+    ctx.globalAlpha = Math.max(0, Math.min(1, q.life));
+    if(q.kind === 'bubble'){ ell(ctx, q.x, q.y, q.size, q.size); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.8; ctx.stroke(); }
+    else if(q.kind === 'conf'){ ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); ctx.fillStyle = q.color; ctx.fillRect(-q.size/2, -q.size/4, q.size, q.size/2); ctx.restore(); }
+    else { ell(ctx, q.x, q.y, q.size, q.size); ctx.fillStyle = q.color; ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+let last = performance.now(), running = false;
+function loop(now){
+  const dt = Math.min(0.05, (now - last)/1000); last = now;
+  if(running) update(dt); else time += dt;
+  draw(); requestAnimationFrame(loop);
+}
+
+/* ====== Felület ====== */
+const $ = id => document.getElementById(id);
+function updateHud(){
+  $('flyCount').textContent = flies;
+  [...$('dots').children].forEach((d,i) => d.classList.toggle('on', i <= level));
+}
+function starSvg(){ return '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.5L12 17.2l-5.9 3.2 1.3-6.5L2.5 9.3l6.6-.8z" fill="#ffd23f" stroke="#1d3a2a" stroke-width="1.8" stroke-linejoin="round"/></svg>'; }
+function showWin(){ $('winStars').innerHTML = starSvg()+starSvg()+starSvg(); $('winScreen').hidden = false; }
+$('playBtn').addEventListener('click', () => { initAudio(); $('startScreen').hidden = true; running = true; sfxCroak(); });
+$('againBtn').addEventListener('click', () => { initAudio(); $('winScreen').hidden = true; buildLevel(level); });
+$('nextBtn').addEventListener('click', () => { initAudio(); $('winScreen').hidden = true; buildLevel((level+1) % LEVELS.length); });
+$('musicBtn').addEventListener('click', () => { initAudio(); setMusic(!musicOn); });
+
+// QR megosztás
+let qrData = null;
+function makeQr(){
+  const url = shareUrl(); $('qrUrl').textContent = url;
+  if(typeof QRCode === 'undefined'){ $('qrImg').hidden = true; $('dlBtn').hidden = true; $('qrHint').textContent = 'A QR kód most nem tölthető be. Másold ki a linket, és küldd el.'; return; }
+  const tmp = document.createElement('div');
+  new QRCode(tmp, {text:url, width:512, height:512, colorDark:'#1d3a2a', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M});
+  const src = tmp.querySelector('canvas');
+  const out = document.createElement('canvas'); out.width = 640; out.height = 760; const c = out.getContext('2d');
+  c.fillStyle = '#fffaf0'; c.fillRect(0,0,640,760); c.drawImage(src, 64, 64, 512, 512);
+  c.fillStyle = '#2f6b23'; c.font = '800 64px "Baloo 2", "Trebuchet MS", sans-serif'; c.textAlign = 'center'; c.fillText('Ugri Béka', 320, 660);
+  c.fillStyle = '#3c5446'; c.font = '28px system-ui, sans-serif'; c.fillText('Olvasd be, és ugráljunk!', 320, 710);
+  drawFrog(c, 560, 650, 0.3, 1.4, {});
+  qrData = out.toDataURL('image/png'); $('qrImg').src = qrData;
+}
+$('qrBtn').addEventListener('click', () => { makeQr(); $('qrScreen').hidden = false; $('shareBtn').hidden = !navigator.share; });
+$('closeQr').addEventListener('click', () => { $('qrScreen').hidden = true; });
+$('copyBtn').addEventListener('click', () => {
+  const done = () => { $('copyBtn').textContent = 'Kimásolva!'; setTimeout(() => $('copyBtn').textContent = 'Link másolása', 1800); };
+  const fallback = () => { const r = document.createRange(); r.selectNodeContents($('qrUrl')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('copyBtn').textContent = 'Jelöld ki és másold'; };
+  try{ navigator.clipboard.writeText(shareUrl()).then(done, fallback); }catch(e){ fallback(); }
+});
+let dlApi; if(window.claude && window.claude.use){ window.claude.use('downloads').then(d => { dlApi = d; }).catch(() => {}); }
+$('dlBtn').addEventListener('click', () => {
+  if(!qrData) return;
+  const failHint = () => { $('qrHint').textContent = 'Ha nem indult el a letöltés, nyomd hosszan a QR képet, és válaszd a Kép mentése lehetőséget.'; };
+  if(dlApi){
+    const bin = atob(qrData.split(',')[1]), arr = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    dlApi.save({filename:'ugri-beka-qr.png', data:new Blob([arr], {type:'image/png'})}).catch(e => { if(!e || e.code !== 'declined') failHint(); });
+    return;
+  }
+  const a = document.createElement('a'); a.href = qrData; a.download = 'ugri-beka-qr.png'; document.body.appendChild(a); a.click(); a.remove(); failHint();
+});
+$('shareBtn').addEventListener('click', () => { navigator.share({title:'Ugri Béka', text:'Ugrálós békás játék kicsiknek', url:shareUrl()}).catch(() => {}); });
+
+// kezdőképernyő béka
+(function(){ const c = $('startFrog').getContext('2d'); let t0 = 0;
+  (function anim(){ t0 += 0.016; c.clearRect(0,0,360,300);
+    c.fillStyle = C.pad; c.beginPath(); c.moveTo(180,170); c.arc(180,170,110,0.3,TAU-0.05); c.closePath(); c.fill(); c.lineWidth = 5; c.strokeStyle = C.outline; c.stroke();
+    const h = Math.abs(Math.sin(t0*2.5)); drawFrog(c, 180, 165 - h*14, Math.sin(t0*1.2)*0.15, 2.6 + h*0.5, {air:h, blink:(t0%3)<0.1, lookY:-0.5});
+    if(!$('startScreen').hidden) requestAnimationFrame(anim);
+  })();
+})();
+
+
+buildLevel(0);
+requestAnimationFrame(loop);
+})();
+</script>

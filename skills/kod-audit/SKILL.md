@@ -72,6 +72,14 @@ Tilos: "kész" jelzés nyitott hibával, hibák elhallgatása, teszt kikapcsolá
 - Felesleges ciklus/lekérdezés, N+1, nagy lista virtualizálás nélkül, memóriaszivárgás.
 - Mérj, mielőtt optimalizálsz. Ne bonyolítsd a kódot mérés nélkül.
 
+## 7. Állapot és logika (játéknál, appnál kötelező)
+- **Ismétlés:** újrapróbálás, visszalépés, újrafúrás után nem ad-e kétszer jutalmat; idempotens-e a művelet.
+- **Alapértékek:** az alapbeállítás minden szinten érvényes állapot-e (nem vált ki azonnal figyelmeztetést vagy hibát).
+- **Pénz és erőforrás:** nem lehet negatív, és a fizetős művelet fedezet nélkül nem lehet ingyenes.
+- **Gombok:** folyamat közben le vannak-e tiltva; nincs-e dupla végrehajtás (fókuszban maradt gomb + Enter/Space).
+- **Bezárás és újranyitás:** a függő állapot (folytatás, időzítő, animáció) nullázódik-e.
+- **Mentés:** az új mentett mező sérült vagy régi mentésből is javul-e; van-e mentés–betöltés teszt.
+
 ## Jelentés formátuma
 ```
 AUDIT – kör #N

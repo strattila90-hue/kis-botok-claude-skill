@@ -73,6 +73,15 @@ h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf-dark)
 @media (max-width:360px){ .lv{gap:5px} .lv button{width:36px;height:36px;font-size:17px;border-width:2px} .pick{gap:6px} }
 @media (max-height:520px){ #startFrog{display:none} .pick{width:auto;grid-template-columns:repeat(6,46px)} .lv button{width:38px;height:38px;font-size:18px} }
 
+.lvlnum{margin-left:4px;padding:0 10px;border-radius:999px;background:var(--sun);border:3px solid var(--ink);font-size:.8em;line-height:1.35}
+.lv{align-items:center}
+.lv button{font-weight:800;font-family:var(--font-display);font-size:26px;color:var(--ink)}
+.lv button:disabled{opacity:.3;cursor:default}
+.lvbadge{min-width:86px;height:46px;padding:0 12px;box-sizing:border-box;border-radius:999px;border:3px solid var(--ink);background:var(--sun);box-shadow:0 3px 0 var(--ink);
+  display:flex;align-items:center;justify-content:center;gap:4px;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+@media (max-width:420px){ .lv{gap:6px} .lv button{width:38px;height:38px;font-size:22px} .lvbadge{min-width:72px;height:40px;font-size:20px;padding:0 8px} }
+@media (max-width:360px){ .lv{gap:4px!important} .lv button{width:36px!important;height:36px!important;font-size:20px} .lvbadge{min-width:0;font-size:17px;padding:0 7px;height:38px} }
+
 /* Telefonra hangolás */
 .overlay{overflow-y:auto;padding-top:12px;padding-bottom:12px}
 .panel{margin:auto}
@@ -109,7 +118,7 @@ h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf-dark)
 <div id="hud" aria-live="polite">
   <svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="13" cy="15" rx="9" ry="6" fill="#cdeffc" stroke="#1d3a2a" stroke-width="2.5" transform="rotate(-25 13 15)"/><ellipse cx="27" cy="15" rx="9" ry="6" fill="#cdeffc" stroke="#1d3a2a" stroke-width="2.5" transform="rotate(25 27 15)"/><ellipse cx="20" cy="24" rx="6" ry="9" fill="#2b2b38" stroke="#1d3a2a" stroke-width="2.5"/><circle cx="17.5" cy="17" r="2" fill="#ff5b5b"/><circle cx="22.5" cy="17" r="2" fill="#ff5b5b"/></svg>
   <span id="flyCount">0</span>
-  <span id="dots"></span>
+  <span id="lvl" class="lvlnum" aria-label="Pálya">1</span>
 </div>
 
 <div id="topbar">
@@ -127,7 +136,7 @@ h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf-dark)
     <h1>Ugri Béka</h1>
     <canvas id="startFrog" width="360" height="300" aria-hidden="true"></canvas>
     <div id="frogPick" class="pick" role="radiogroup" aria-label="Válassz békát"></div>
-    <div id="levelPick" class="lv" role="radiogroup" aria-label="Válassz pályát"></div>
+    <div id="levelPick" class="lv" role="group" aria-label="Pályaválasztó"></div>
     <button class="btn play" id="playBtn" aria-label="Játék indítása">
       <svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" fill="#fffaf0" stroke="#1d3a2a" stroke-width="2.2" stroke-linejoin="round"/></svg>
     </button>
@@ -238,17 +247,83 @@ const LEVELS = [
   [[200,0,62],[130,120,52,{fly:1}],[220,120,44,{stone:1}],[300,118,52,{fly:1,flower:1}],[210,120,50,{move:40,spd:.6}],[120,118,46,{stone:1,fly:1}],[200,120,50,{turtle:1}],[285,118,52],[200,120,50,{move:40,spd:.7,fly:1}],[115,118,52],[200,135,76,{goal:1}]]
 ];
 
+/* ====== Több száz pálya: az első 6 kézzel készült, a többit egy rögzített "mag" alapján generáljuk ======
+   A nehézség (D: 0..1) lassan nő: kisebb és gyorsabb levelek, lebukó teknősök, süllyedő levelek;
+   a végén nincs célra igazítás és előre-számolás, pontosan kell időzíteni. */
+const TOTAL = 300;
+let MAXU = clamp(parseInt(store('ugri-beka-max') || '0', 10) || 0, 0, TOTAL-1);
+let D = 0, PRED = 1, SNAP = 50;
+const SINK_PAL = ['#f1f3ae','#c6cb5c','#8d9036'];
+const THEME_ROT = ['day','bloom','autumn','night'];
+const THEME_ICON = {day:'\u2600\ufe0f', bloom:'\ud83c\udf38', autumn:'\ud83c\udf42', night:'\ud83c\udf19'};
+function getInfo(n){
+  if(n < LEVEL_INFO.length) return LEVEL_INFO[n];
+  const th = THEME_ROT[Math.floor((n-6)/5) % THEME_ROT.length];
+  return {name:(n+1) + '. pálya', theme:th, icon:THEME_ICON[th]};
+}
+function diffOf(n){ return n < LEVELS.length ? 0 : Math.pow((n - LEVELS.length) / (TOTAL - 1 - LEVELS.length), 0.85); }
+function mulberry(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function genLevel(n){
+  const R = mulberry(n*7919 + 13), d = diffOf(n), th = getInfo(n).theme;
+  const cnt = 10 + Math.round(d*22), out = [[200,0,62]];
+  let px = 200, prevUnsafe = false, prevSinker = false;
+  for(let i=1;i<cnt;i++){
+    const o = {}; let r = Math.round(54 - d*24 + R()*6), kind = 'pad', acc = 0; const q = R();
+    const pick = (prob, k) => { acc += prob; if(kind === 'pad' && q < acc) kind = k; };
+    pick(th === 'autumn' ? 0.25 : 0.06 + d*0.06, 'log');
+    pick(th === 'bloom' ? 0.16 : 0.04 + d*0.05, 'duck');
+    pick(0.08 + d*0.14, 'turtle');
+    pick(d > 0.15 ? (d-0.15)*0.45 : 0, 'sinker');
+    pick(0.12, 'stone');
+    pick(0.15 + d*0.45, 'move');
+    if(prevUnsafe && d < 0.6 && (kind === 'turtle' || kind === 'sinker')) kind = 'pad';
+    // süllyedő levél után mindig álló elem jön, hogy legyen idő ugrani
+    if(prevSinker && kind !== 'pad' && kind !== 'stone') kind = R() < 0.5 ? 'stone' : 'pad';
+    const gap = Math.round(112 + d*36 + R()*10);
+    const maxDx = Math.min(120, Math.sqrt(Math.max(0, 158*158 - gap*gap)));
+    let x = px;
+    for(let t=0;t<6;t++){ x = px + (R()*2-1)*maxDx; if(Math.abs(x-px) > 35) break; }
+    if(kind === 'log'){
+      const w = Math.round(170 - d*55 + R()*20), half = w/2; let A = Math.round((30 + d*55)*(0.6 + R()*0.4));
+      if(half + A + 25 > 400 - half - A - 25) A = Math.max(0, Math.floor(200 - half - 26));
+      o.log = 1; o.w = w; o.move = A; o.spd = +(0.4 + d*1.0 + R()*0.15).toFixed(2); r = 22;
+      x = clamp(x, half + A + 25, 400 - half - A - 25);
+    } else {
+      if(kind === 'stone'){ o.stone = 1; r = Math.round(r*0.85); }
+      if(kind === 'turtle'){ o.turtle = 1; o.tspd = +(0.17 + d*0.18).toFixed(3); }
+      if(kind === 'sinker') o.sinker = 1;
+      if(kind === 'duck'){ o.duck = 1; r = Math.max(36, Math.round(44 - d*8)); }
+      if(kind === 'move' || kind === 'duck' || (kind === 'sinker' && d > 0.7 && R() < 0.4)){
+        o.move = Math.round((35 + d*60)*(0.6 + R()*0.4)); o.spd = +(0.45 + d*1.25 + R()*0.2).toFixed(2);
+      }
+      let A = o.move || 0;
+      if(r + A + 28 > 400 - r - A - 28){ A = Math.max(0, Math.floor(200 - r - 29)); o.move = A; }
+      x = clamp(x, r + A + 28, 400 - r - A - 28);
+    }
+    if(R() < 0.3) o.fly = 1;
+    if(R() < 0.15 && !o.log && !o.duck) o.flower = 1;
+    let g2 = gap; const ddx = Math.abs(x - px); if(Math.hypot(ddx, g2) > 158) g2 = Math.max(96, Math.round(Math.sqrt(Math.max(0, 158*158 - ddx*ddx))));
+    out.push([Math.round(x), g2, r, o]);
+    px = x; prevUnsafe = kind === 'turtle' || kind === 'sinker'; prevSinker = kind === 'sinker';
+  }
+  out.push([Math.round(clamp(px, 120, 280)), 130, 76, {goal:1}]);
+  return out;
+}
+const LCACHE = {};
+function getLevel(n){ return n < LEVELS.length ? LEVELS[n] : (LCACHE[n] || (LCACHE[n] = genLevel(n))); }
+
 let level = 0, pads = [], time = 0, camY = 0, flies = 0, totalFlies = 0;
 let particles = [], ripples = [], idleT = 0, winT = 0;
 const frog = {x:0,y:0,ang:0,state:'idle',pad:null,relX:0,relY:0,jt:0,jdur:.6,fx:0,fy:0,tx:0,ty:0,trick:'normal',spinDir:1,
   sinkT:0,popT:0,puff:0,tongue:0,tongueTo:null,lastSafe:null,blink:0};
 
 function buildLevel(n){
-  level = n; TH = THEMES[LEVEL_INFO[n].theme]; FRIEND = pickFriend(); pads = []; let y = 0; flies = 0; totalFlies = 0;
-  LEVELS[n].forEach((d,i) => {
+  level = n; TH = THEMES[getInfo(n).theme]; FRIEND = pickFriend(); store('ugri-beka-szint', String(n));
+  D = diffOf(n); SNAP = 8 + 42*(1-D); PRED = clamp(1 - (D-0.25)/0.45, 0, 1); pads = []; let y = 0; flies = 0; totalFlies = 0;
+  getLevel(n).forEach((d,i) => {
     y -= d[1]; const o = d[3]||{};
     const p = {i, bx:d[0], by:y, r:o.log ? (o.w||160)/2 : d[2], hh:d[2], log:!!o.log, stone:!!o.stone, duck:!!o.duck, cx:d[0], cy:y, rot:rnd(i*7+n)*TAU, move:o.move||0, spd:o.spd||0, ph:rnd(i+n*13)*TAU,
-      fly:!!o.fly, flyGot:false, flower:!!o.flower, goal:!!o.goal, turtle:!!o.turtle, bob:0};
+      fly:!!o.fly, flyGot:false, flower:!!o.flower, goal:!!o.goal, turtle:!!o.turtle, bob:0, sinker:!!o.sinker, sinkStart:null, delay:2.6 - D*1.5, tspd:o.tspd || 0.17};
     if(p.fly) totalFlies++;
     pads.push(p);
   });
@@ -261,8 +336,10 @@ function padPos(p,t){
   if(!p.move) return {x:p.bx, y:p.by};
   return {x:p.bx + Math.sin(t*p.spd + p.ph)*p.move, y:p.by};
 }
-function turtleCycle(p,t){ return ((t*0.17 + p.ph/TAU) % 1 + 1) % 1; } // ~6 mp-es ciklus
-function solid(p,t){ if(!p.turtle) return true; const c = turtleCycle(p,t); return c < 0.74 || c > 0.95; }
+function turtleCycle(p,t){ return ((t*(p.tspd||0.17) + p.ph/TAU) % 1 + 1) % 1; } // ~6 mp-es ciklus
+function sinkerAmt(p){ if(!p.sinker || p.sinkStart == null) return 0; const t = time - p.sinkStart; return t < p.delay ? 0 : Math.min(1, (t - p.delay)/0.6); }
+function sinkerWarn(p){ return p.sinker && p.sinkStart != null && time - p.sinkStart > p.delay - 0.9 && sinkerAmt(p) < 1; }
+function solid(p,t){ if(p.sinker) return sinkerAmt(p) < 0.95; if(!p.turtle) return true; const c = turtleCycle(p,t); return c < 0.74 || c > 0.95; }
 function turtleSink(p,t){ // 0 = fenn, 1 = teljesen lent
   const c = turtleCycle(p,t);
   if(c < 0.62) return 0; if(c < 0.74) return (c-0.62)/0.12*0.6; if(c < 0.9) return 1; return 1-(c-0.9)/0.1;
@@ -431,7 +508,8 @@ function land(){
   hit.bob = 1; addRipple(hit.cx, hit.cy, (hit.log ? hit.hh : hit.r)+30, 3); sfxPlop();
   if(hit.duck) setTimeout(sfxQuack, 120); else if(hit.log || hit.stone) sfxKnock();
   burst(frog.x, frog.y, 8, ['#ffffff','#d8f6ff'], 90, 3.5, 0);
-  if(!hit.turtle) frog.lastSafe = hit;
+  if(hit.sinker && hit.sinkStart == null) hit.sinkStart = time;
+  if(!hit.turtle && !hit.sinker) frog.lastSafe = hit;
   if(Math.random() < 0.35) setTimeout(sfxCroak, 150);
   if(hit.fly && !hit.flyGot){ hit.flyGot = true; frog.tongue = 1; frog.tongueTo = flyPos(hit); flies++; sfxYum();
     burst(frog.tongueTo.x, frog.tongueTo.y, 14, [C.sun,'#fff3a8','#ffffff'], 120, 5, 0); updateHud(); }
@@ -450,7 +528,7 @@ function respawn(){
 }
 function startWin(){
   frog.state = 'win'; winT = 0; sfxWin(); setTimeout(sfxCroak, 500);
-  store('ugri-szint', String(Math.min(level+1, LEVELS.length-1)));
+  MAXU = Math.max(MAXU, Math.min(level+1, TOTAL-1)); store('ugri-beka-max', String(MAXU));
 }
 function flyPos(p){ return {x:p.cx + Math.cos(time*2+p.i)*p.r*0.55, y:p.cy - p.r*0.35 + Math.sin(time*3.1+p.i)*8}; }
 
@@ -459,11 +537,11 @@ function onTap(sx, sy){
   const wx = (sx-offX)/scale, wy = sy/scale + camY;
   if(dist(wx,wy,frog.x,frog.y) < 30){ frog.puff = 1; sfxCroak(); return; }
   const dur = 0.62; let best = null, bd = 1e9;
-  for(const p of pads){
-    const pp = padPos(p, time+dur);
+  if(PRED > 0.05) for(const p of pads){
+    const pp = padPos(p, time + dur*PRED);
     if(p.log) pp.x += clamp(wx - pp.x, -(p.r-18), p.r-18);
     const rr = p.log ? p.hh : p.r, dTap = dist(wx,wy,pp.x,pp.y), dF = dist(frog.x,frog.y,pp.x,pp.y);
-    if(dTap < rr+50 && dF < MAXJ + rr*0.6 && dTap < bd){ bd = dTap; best = pp; }
+    if(dTap < rr+SNAP && dF < MAXJ + rr*0.6 && dTap < bd){ bd = dTap; best = pp; }
   }
   let tx, ty;
   if(best){ tx = best.x; ty = best.y; }
@@ -474,12 +552,13 @@ cv.addEventListener('pointerdown', e => { e.preventDefault(); onTap(e.clientX, e
 
 function update(dt){
   time += dt; idleT += dt;
-  for(const p of pads){ const pp = padPos(p,time); p.cx = pp.x; p.cy = pp.y; p.bob = Math.max(0, p.bob - dt*2.2); }
+  for(const p of pads){ const pp = padPos(p,time); p.cx = pp.x; p.cy = pp.y; p.bob = Math.max(0, p.bob - dt*2.2);
+    if(p.sinker && p.sinkStart != null && frog.pad !== p && time - p.sinkStart > p.delay + 2.6) p.sinkStart = null; }
   frog.puff = Math.max(0, frog.puff - dt*1.6); frog.tongue = Math.max(0, frog.tongue - dt*4);
   frog.blink = (time % 3.7) < 0.12 ? 1 : 0;
   if(frog.state === 'idle' || frog.state === 'win' || frog.state === 'pop'){
     if(frog.pad){ frog.x = frog.pad.cx + frog.relX; frog.y = frog.pad.cy + frog.relY; }
-    if(frog.state === 'idle' && frog.pad && frog.pad.turtle && !solid(frog.pad,time)) startSink();
+    if(frog.state === 'idle' && frog.pad && (frog.pad.turtle || frog.pad.sinker) && !solid(frog.pad,time)) startSink();
     if(frog.state === 'pop'){ frog.popT += dt; if(frog.popT > 0.55) frog.state = 'idle'; }
     if(frog.state === 'win'){ winT += dt;
       if(Math.random() < dt*14) particles.push({x:frog.x+(Math.random()-0.5)*300, y:camY-10, vx:(Math.random()-0.5)*60, vy:60+Math.random()*80, life:1, decay:0.25, color:[C.sun,C.pink,'#7ad3ff','#ffffff','#b48cff'][Math.random()*5|0], size:5+Math.random()*4, grav:20, rot:Math.random()*TAU, kind:'conf'});
@@ -591,7 +670,7 @@ function makePadSprite(R, rot, seed, k, goal, pal){
 }
 function padSprite(p){
   const k = scale*dpr;
-  if(!p.spr || Math.abs(p.sprK-k) > 0.01){ p.spr = makePadSprite(p.r, p.rot, p.i*7+level*31+1, k, p.goal, TH.pad); p.sprK = k; }
+  if(!p.spr || Math.abs(p.sprK-k) > 0.01){ p.spr = makePadSprite(p.r, p.rot, p.i*7+level*31+1, k, p.goal, p.sinker ? SINK_PAL : TH.pad); p.sprK = k; }
   return p.spr;
 }
 
@@ -639,7 +718,9 @@ function drawPad(c, p){
   softShadow(c, p.cx+6, p.cy+9, R*1.1, R*1.02, 0.34);
   c.strokeStyle = 'rgba(255,255,255,' + (0.25 + 0.1*Math.sin(time*2+p.i)) + ')'; c.lineWidth = 3;
   ell(c, p.cx, p.cy, R*bob+4, R*bob+4); c.stroke();
-  c.save(); c.translate(p.cx, p.cy); c.scale(bob, bob);
+  const sk = sinkerAmt(p), shk = sinkerWarn(p) ? Math.sin(time*45)*1.8 : 0;
+  if(sk > 0.05 && Math.random() < 0.3) particles.push({x:p.cx+(Math.random()-0.5)*R, y:p.cy+(Math.random()-0.5)*R, vx:0, vy:-8, life:1, decay:1.5, color:'#ffffff', size:3+Math.random()*3, grav:0, kind:'bubble'});
+  c.save(); c.translate(p.cx + shk, p.cy); c.scale(bob*(1-sk*0.3), bob*(1-sk*0.3)); c.globalAlpha = 1 - sk*0.85;
   c.drawImage(padSprite(p), -half, -half, half*2, half*2);
   if(p.flower) drawLotus(c, -R*0.45, R*0.42, 13, p.i);
   if(p.goal){ drawLotus(c, -R*0.62, -R*0.18, 20, time*0.15); drawLotus(c, R*0.64, R*0.36, 14, -time*0.2); }
@@ -1002,7 +1083,7 @@ function draw(){
   }
   ctx.globalAlpha = 1;
   const cur = frog.pad || frog.lastSafe; const next = cur ? pads[cur.i+1] : null;
-  if(next && frog.state === 'idle' && idleT > 2.5){
+  if(next && frog.state === 'idle' && idleT > (D < 0.3 ? 2.5 : 1e9)){
     const pulse = (Math.sin(time*5)+1)/2;
     ctx.strokeStyle = 'rgba(255,240,120,' + (0.5+pulse*0.5) + ')'; ctx.lineWidth = 6 + pulse*3;
     ell(ctx, next.cx, next.cy, next.r + 10 + pulse*8, (next.log ? next.hh : next.r) + 10 + pulse*8); ctx.stroke();
@@ -1065,7 +1146,7 @@ function loop(now){
 const $ = id => document.getElementById(id);
 function updateHud(){
   $('flyCount').textContent = flies;
-  [...$('dots').children].forEach((d,i) => d.classList.toggle('on', i <= level));
+  $('lvl').textContent = level + 1;
 }
 function starSvg(){ return '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.5L12 17.2l-5.9 3.2 1.3-6.5L2.5 9.3l6.6-.8z" fill="#ffd23f" stroke="#1d3a2a" stroke-width="1.8" stroke-linejoin="round"/></svg>'; }
 function showWin(){ $('winStars').innerHTML = starSvg()+starSvg()+starSvg(); $('winScreen').hidden = false; }
@@ -1078,20 +1159,20 @@ function buildPickers(){
     fp.appendChild(b);
   });
   const lp = $('levelPick'); lp.innerHTML = '';
-  LEVEL_INFO.forEach((L,i) => {
-    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role','radio'); b.setAttribute('aria-label', (i+1) + '. pálya: ' + L.name);
-    b.textContent = L.icon; b.addEventListener('click', () => { initAudio(); buildLevel(i); markPick(); sfxPop(); });
-    lp.appendChild(b);
-  });
-  $('dots').innerHTML = LEVELS.map(() => '<i></i>').join('');
+  const mk = (txt, lab, step) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.setAttribute('aria-label', lab); b.dataset.step = step;
+    b.addEventListener('click', () => { initAudio(); const n = clamp(level + step, 0, MAXU); if(n !== level){ buildLevel(n); sfxPop(); } markPick(); }); return b; };
+  lp.appendChild(mk('\u00ab', '10 pályával vissza', -10)); lp.appendChild(mk('\u2039', 'Előző pálya', -1));
+  const badge = document.createElement('div'); badge.id = 'lvBadge'; badge.className = 'lvbadge'; badge.setAttribute('aria-live','polite'); lp.appendChild(badge);
+  lp.appendChild(mk('\u203a', 'Következő pálya', 1)); lp.appendChild(mk('\u00bb', '10 pályával előre', 10));
 }
 function markPick(){
   [...$('frogPick').children].forEach((b,i) => b.setAttribute('aria-checked', String(FROGS[i] === SP)));
-  [...$('levelPick').children].forEach((b,i) => b.setAttribute('aria-checked', String(i === level)));
+  const inf = getInfo(level); $('lvBadge').textContent = inf.icon + ' ' + (level+1); $('lvBadge').title = inf.name + ' (' + (level+1) + ' / ' + TOTAL + ')';
+  $('levelPick').querySelectorAll('button').forEach(b => { const st = +b.dataset.step; b.disabled = st < 0 ? level === 0 : level >= MAXU; });
 }
 $('playBtn').addEventListener('click', () => { initAudio(); $('startScreen').hidden = true; running = true; sfxCroak(); });
 $('againBtn').addEventListener('click', () => { initAudio(); $('winScreen').hidden = true; buildLevel(level); });
-$('nextBtn').addEventListener('click', () => { initAudio(); $('winScreen').hidden = true; buildLevel((level+1) % LEVELS.length); });
+$('nextBtn').addEventListener('click', () => { initAudio(); $('winScreen').hidden = true; buildLevel(level+1 < TOTAL ? level+1 : 0); markPick(); });
 $('musicBtn').addEventListener('click', () => { initAudio(); setMusic(!musicOn); });
 
 // QR megosztás
@@ -1143,9 +1224,9 @@ $('shareBtn').addEventListener('click', () => { navigator.share({title:'Ugri Bé
   })();
 })();
 
-if(location.search.indexOf('debug') >= 0) window.__ugri = { state: () => ({ level, flies, frog:{x:frog.x, y:frog.y, state:frog.state, pad:frog.pad && frog.pad.i}, pads: pads.map(p => ({i:p.i, x:p.cx, y:p.cy, r:p.r, log:p.log, duck:p.duck})), camY, scale, offX }) };
+if(location.search.indexOf('debug') >= 0) window.__ugri = { state: () => ({ level, flies, frog:{x:frog.x, y:frog.y, state:frog.state, pad:frog.pad && frog.pad.i}, pads: pads.map(p => ({i:p.i, x:p.cx, y:p.cy, bx:p.bx, r:p.r, hh:p.hh, log:p.log, duck:p.duck, move:p.move, spd:p.spd, ph:p.ph, turtle:p.turtle, tspd:p.tspd, sinker:p.sinker, solid:solid(p,time)})), camY, scale, offX, time, D, PRED, SNAP, MAXU }), unlock: () => { MAXU = TOTAL-1; markPick(); }, go: n => { buildLevel(n); markPick(); }, gen: n => getLevel(n) };
 buildPickers();
-buildLevel(0);
+buildLevel(clamp(parseInt(store('ugri-beka-szint') || '0', 10) || 0, 0, MAXU));
 markPick();
 requestAnimationFrame(loop);
 })();

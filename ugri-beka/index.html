@@ -1,7 +1,7 @@
-<title>Ugri Béka</title>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
+<title>Ugri Béka</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
 <style>
@@ -58,6 +58,21 @@ h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf-dark)
 .panel.rel{position:relative}
 #startFrog{width:180px;height:150px}
 
+/* Béka- és pályaválasztó */
+#startFrog{width:160px;height:133px}
+.pick{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:100%}
+.pick button{aspect-ratio:1;width:100%;max-width:64px;justify-self:center;padding:0;border-radius:18px;border:3px solid var(--ink);background:#eaf6df;box-shadow:0 3px 0 var(--ink);cursor:pointer;transition:transform .12s}
+.pick button[aria-checked="true"]{background:var(--sun);transform:scale(1.1)}
+.pick button:focus-visible,.lv button:focus-visible{outline:4px solid var(--sun);outline-offset:2px}
+.pick canvas{width:100%;height:100%;display:block}
+.lv{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.lv button{width:46px;height:46px;border-radius:50%;border:3px solid var(--ink);background:#fff;font-size:22px;line-height:1;padding:0;box-shadow:0 3px 0 var(--ink);cursor:pointer;transition:transform .12s}
+.lv button[aria-checked="true"]{background:var(--sun);transform:scale(1.12)}
+@media (max-width:420px){ .pick{grid-template-columns:repeat(3,1fr)} .pick button{max-width:72px} #startFrog{width:130px;height:108px} .lv button{width:40px;height:40px;font-size:19px} #dots i{width:10px;height:10px;border-width:2px} #dots{gap:4px} }
+@media (max-width:420px) and (max-height:700px){ #startFrog{display:none} }
+@media (max-width:360px){ .lv{gap:5px} .lv button{width:36px;height:36px;font-size:17px;border-width:2px} .pick{gap:6px} }
+@media (max-height:520px){ #startFrog{display:none} .pick{width:auto;grid-template-columns:repeat(6,46px)} .lv button{width:38px;height:38px;font-size:18px} }
+
 /* Telefonra hangolás */
 .overlay{overflow-y:auto;padding-top:12px;padding-bottom:12px}
 .panel{margin:auto}
@@ -94,7 +109,7 @@ h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf-dark)
 <div id="hud" aria-live="polite">
   <svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="13" cy="15" rx="9" ry="6" fill="#cdeffc" stroke="#1d3a2a" stroke-width="2.5" transform="rotate(-25 13 15)"/><ellipse cx="27" cy="15" rx="9" ry="6" fill="#cdeffc" stroke="#1d3a2a" stroke-width="2.5" transform="rotate(25 27 15)"/><ellipse cx="20" cy="24" rx="6" ry="9" fill="#2b2b38" stroke="#1d3a2a" stroke-width="2.5"/><circle cx="17.5" cy="17" r="2" fill="#ff5b5b"/><circle cx="22.5" cy="17" r="2" fill="#ff5b5b"/></svg>
   <span id="flyCount">0</span>
-  <span id="dots"><i></i><i></i><i></i></span>
+  <span id="dots"></span>
 </div>
 
 <div id="topbar">
@@ -111,6 +126,8 @@ h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf-dark)
   <div class="panel">
     <h1>Ugri Béka</h1>
     <canvas id="startFrog" width="360" height="300" aria-hidden="true"></canvas>
+    <div id="frogPick" class="pick" role="radiogroup" aria-label="Válassz békát"></div>
+    <div id="levelPick" class="lv" role="radiogroup" aria-label="Válassz pályát"></div>
     <button class="btn play" id="playBtn" aria-label="Játék indítása">
       <svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" fill="#fffaf0" stroke="#1d3a2a" stroke-width="2.2" stroke-linejoin="round"/></svg>
     </button>
@@ -181,11 +198,44 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const dist = (a,b,c,d) => Math.hypot(a-c, b-d);
 function store(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v);}catch(e){ return null; } }
 
-/* ====== Pályák (előre megtervezve): x, távolság az előzőtől, sugár, extrák ====== */
+/* ====== Békafajták ====== */
+const FROGS = [
+  {id:'zoldi', name:'Zöldi, a tavi béka',      color:'#80d856', mid:'#52b03a', dark:'#2f7d2a', light:'#cdf7a6', pat:'spots', voice:1},
+  {id:'keki',  name:'Kéki király',             color:'#5aaeff', mid:'#2f7ae0', dark:'#132a5c', light:'#c6e6ff', pat:'dots', acc:'crown', voice:1.22},
+  {id:'levi',  name:'Levi, a piros szemű',     color:'#79e25a', mid:'#3cb83a', dark:'#1f6b2a', light:'#dcffc4', pat:'sides', iris:'#e8322a', slit:true, voice:1.12},
+  {id:'sargi', name:'Sárgi, a csíkos',         color:'#ffd84a', mid:'#f2ab1e', dark:'#2b2116', light:'#fff3b8', pat:'stripes', voice:1.3},
+  {id:'rozsi', name:'Rózsi masnival',          color:'#ff9fc9', mid:'#ee6fa9', dark:'#c2407f', light:'#ffdcec', pat:'hearts', acc:'bow', voice:1.2},
+  {id:'brumi', name:'Brumi, a varangy',        color:'#b99363', mid:'#8c6a3f', dark:'#5a4026', light:'#e6cfa6', pat:'warts', voice:0.72}
+];
+let SP = FROGS.find(f => f.id === store('ugri-beka-faj')) || FROGS[0];
+let FRIEND = FROGS[1];
+function pickFriend(){ const i = FROGS.indexOf(SP), n = FROGS.length; return FROGS[(i + 1 + (level % (n-1))) % n]; }
+
+/* ====== Hangulatok ====== */
+const THEMES = {
+  day:    {water:['#62d2e8','#2d93c4'], grass:['#9fe36c','#68b942'], tuft:'rgba(60,130,40,.55)', sand:'#efd38f', pad:null, caustic:1, vign:.22, ambient:'butterflies'},
+  bloom:  {water:['#72dbe6','#3a9fcc'], grass:['#aeea78','#6fc04a'], tuft:'rgba(60,130,40,.5)', sand:'#f3dc9e', pad:['#c8f294','#80cf55','#4f9f3a'], caustic:1, vign:.2, ambient:'petals', extraFlowers:true},
+  autumn: {water:['#6cc3cf','#2f7fa6'], grass:['#e2c065','#b98a3c'], tuft:'rgba(140,90,30,.5)', sand:'#e8c98a', pad:['#ffe39a','#f2a23c','#c2622a'], caustic:.8, vign:.25, ambient:'leaves'},
+  night:  {water:['#1d527c','#0b2742'], grass:['#2e6a48','#1b4632'], tuft:'rgba(15,50,30,.6)', sand:'#8f8a6a', pad:['#8fe0b0','#46a476','#235f45'], caustic:.45, vign:.45, ambient:'fireflies', night:true}
+};
+let TH = THEMES.day;
+const LEVEL_INFO = [
+  {name:'Napos tó', theme:'day', icon:'\u2600\ufe0f'},
+  {name:'Virágos hullámok', theme:'bloom', icon:'\ud83c\udf38'},
+  {name:'Teknős-sziget', theme:'day', icon:'\ud83d\udc22'},
+  {name:'Őszi patak', theme:'autumn', icon:'\ud83c\udf42'},
+  {name:'Kacsa-öböl', theme:'bloom', icon:'\ud83e\udd86'},
+  {name:'Esti tó', theme:'night', icon:'\ud83c\udf19'}
+];
+
+/* ====== Pályák (előre megtervezve): x, távolság az előzőtől, sugár (farönknél fél-vastagság), extrák ====== */
 const LEVELS = [
   [[200,0,62],[135,120,54],[235,118,54],[165,118,54,{fly:1}],[255,115,52,{flower:1}],[175,120,52],[105,112,52,{fly:1}],[190,118,52],[275,115,52,{fly:1,flower:1}],[200,135,76,{goal:1}]],
   [[200,0,62],[140,120,54,{fly:1}],[200,125,52,{move:40,spd:.7}],[290,118,52],[210,120,52,{move:45,spd:.6,fly:1}],[120,118,52,{flower:1}],[190,120,52,{move:45,spd:.8}],[270,118,52,{fly:1}],[180,122,52,{move:45,spd:.7}],[110,118,52,{fly:1}],[200,135,76,{goal:1}]],
-  [[200,0,62],[260,120,54],[180,122,50,{turtle:1}],[100,118,52,{fly:1}],[180,120,50,{move:45,spd:.8}],[270,118,50,{turtle:1,fly:1}],[200,120,52,{flower:1}],[120,120,50,{move:40,spd:.9}],[200,120,50,{turtle:1}],[285,118,52,{fly:1}],[200,135,76,{goal:1}]]
+  [[200,0,62],[260,118,54],[180,122,50,{turtle:1}],[100,118,44,{stone:1,fly:1}],[185,118,52],[270,118,50,{turtle:1,fly:1}],[200,120,44,{stone:1}],[120,118,52,{flower:1}],[200,120,50,{turtle:1}],[285,118,52,{fly:1}],[200,135,76,{goal:1}]],
+  [[200,0,62],[200,120,22,{log:1,w:170,move:40,spd:.5}],[110,118,42,{stone:1,fly:1}],[200,118,22,{log:1,w:160,move:50,spd:.6}],[290,118,52],[200,120,22,{log:1,w:180,move:45,spd:.45,fly:1}],[110,118,44,{stone:1}],[190,118,52,{flower:1}],[260,118,22,{log:1,w:150,move:40,spd:.55}],[180,118,52,{fly:1}],[200,135,76,{goal:1}]],
+  [[200,0,62],[140,120,52,{fly:1}],[220,122,44,{duck:1,move:55,spd:.5}],[300,118,52],[200,120,44,{duck:1,move:60,spd:.45,fly:1}],[110,118,52,{flower:1}],[190,120,44,{duck:1,move:55,spd:.55}],[280,118,52,{fly:1}],[190,120,46,{stone:1}],[110,118,52,{fly:1}],[200,135,76,{goal:1}]],
+  [[200,0,62],[130,120,52,{fly:1}],[220,120,44,{stone:1}],[300,118,52,{fly:1,flower:1}],[210,120,50,{move:40,spd:.6}],[120,118,46,{stone:1,fly:1}],[200,120,50,{turtle:1}],[285,118,52],[200,120,50,{move:40,spd:.7,fly:1}],[115,118,52],[200,135,76,{goal:1}]]
 ];
 
 let level = 0, pads = [], time = 0, camY = 0, flies = 0, totalFlies = 0;
@@ -194,16 +244,16 @@ const frog = {x:0,y:0,ang:0,state:'idle',pad:null,relX:0,relY:0,jt:0,jdur:.6,fx:
   sinkT:0,popT:0,puff:0,tongue:0,tongueTo:null,lastSafe:null,blink:0};
 
 function buildLevel(n){
-  level = n; pads = []; let y = 0; flies = 0; totalFlies = 0;
+  level = n; TH = THEMES[LEVEL_INFO[n].theme]; FRIEND = pickFriend(); pads = []; let y = 0; flies = 0; totalFlies = 0;
   LEVELS[n].forEach((d,i) => {
     y -= d[1]; const o = d[3]||{};
-    const p = {i, bx:d[0], by:y, r:d[2], cx:d[0], cy:y, rot:rnd(i*7+n)*TAU, move:o.move||0, spd:o.spd||0, ph:rnd(i+n*13)*TAU,
+    const p = {i, bx:d[0], by:y, r:o.log ? (o.w||160)/2 : d[2], hh:d[2], log:!!o.log, stone:!!o.stone, duck:!!o.duck, cx:d[0], cy:y, rot:rnd(i*7+n)*TAU, move:o.move||0, spd:o.spd||0, ph:rnd(i+n*13)*TAU,
       fly:!!o.fly, flyGot:false, flower:!!o.flower, goal:!!o.goal, turtle:!!o.turtle, bob:0};
     if(p.fly) totalFlies++;
     pads.push(p);
   });
   const p0 = pads[0];
-  Object.assign(frog, {x:p0.cx, y:p0.cy, ang:0, state:'idle', pad:p0, relX:0, relY:0, lastSafe:p0, puff:0, tongue:0});
+  Object.assign(frog, {x:p0.cx, y:p0.cy, ang:0, state:'idle', pad:p0, relX:0, relY:0, lastSafe:p0, puff:0, tongue:0, winShown:false});
   camY = frog.y - viewH*0.68; particles = []; ripples = []; idleT = 0;
   updateHud();
 }
@@ -302,15 +352,18 @@ function buildSounds(){
     {t:0.11, d:0.32, rate:42, glide:-0.15, f1:300, f2:820, f3:1500, b1:90}]));
   SND.fart = [108, 86].map(b => makeBuf(0.9, (d,sr) => fartFill(d, sr, b)));
   SND.bubbles = makeBuf(0.85, bubbleFill);
+  SND.quack = [1, 1.12].map(p => makeBuf(0.3, (d,sr) => frogCall(d, sr, [{t:0.01, d:0.17, rate:210*p, glide:-0.25, f1:900*p, f2:1350*p, f3:2700*p, b1:220, b2:260, b3:400}])));
 }
 function playBuf(b, rate, vol, delay){
   if(!AC || !b) return; const s = AC.createBufferSource(), g = AC.createGain();
   s.buffer = b; s.playbackRate.value = rate || 1; g.gain.value = vol == null ? 0.8 : vol;
   s.connect(g); g.connect(sfxGain); s.start(AC.currentTime + (delay || 0));
 }
-function sfxRibbit(){ if(!AC) return; buildSounds(); playBuf(SND.ribbit[Math.random()*3|0], 0.94 + Math.random()*0.14, 1.1); }
-function sfxCroak(){ if(!AC) return; buildSounds(); playBuf(SND.croak, 0.95 + Math.random()*0.1, 0.95); }
+function sfxRibbit(){ if(!AC) return; buildSounds(); playBuf(SND.ribbit[Math.random()*3|0], (0.94 + Math.random()*0.14)*(SP.voice||1), 1.1); }
+function sfxCroak(){ if(!AC) return; buildSounds(); playBuf(SND.croak, (0.95 + Math.random()*0.1)*(SP.voice||1), 0.95); }
 function sfxFart(){ if(!AC) return; buildSounds(); playBuf(SND.fart[Math.random()*2|0], 0.9 + Math.random()*0.25, 0.85, 0.12); playBuf(SND.bubbles, 1, 0.5, 0.8); }
+function sfxQuack(){ if(!AC) return; buildSounds(); playBuf(SND.quack[Math.random()*2|0], 1, 0.9); }
+function sfxKnock(){ if(!AC) return; const t = AC.currentTime; tone(TH.night ? 200 : 240, t, 0.07, 'triangle', 0.3, null, 150); }
 function sfxWhoosh(){
   if(!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
   s.buffer = noiseBuf(); f.type = 'bandpass'; f.Q.value = 1.4; f.frequency.setValueAtTime(500, t); f.frequency.exponentialRampToValueAtTime(1600, t+0.25);
@@ -365,12 +418,18 @@ function startJump(tx,ty,dur){
   sfxRibbit(); if(frog.trick === 'spin' || frog.trick === 'big') sfxWhoosh();
   addRipple(frog.fx, frog.fy, 40, 2);
 }
+function onPad(p,x,y){
+  if(p.log) return Math.abs(x-p.cx) < p.r + 4 && Math.abs(y-p.cy) < p.hh + 12;
+  return dist(x,y,p.cx,p.cy) < p.r*0.95 + 8;
+}
 function land(){
   let hit = null;
-  for(const p of pads){ if(dist(frog.x,frog.y,p.cx,p.cy) < p.r*0.95 + 8 && solid(p,time)){ hit = p; break; } }
+  for(const p of pads){ if(onPad(p, frog.x, frog.y) && solid(p,time)){ hit = p; break; } }
   if(!hit){ startSink(); return; }
-  frog.state = 'idle'; frog.pad = hit; frog.relX = clamp(frog.x-hit.cx, -hit.r*0.45, hit.r*0.45); frog.relY = clamp(frog.y-hit.cy, -hit.r*0.45, hit.r*0.45);
-  hit.bob = 1; addRipple(hit.cx, hit.cy, hit.r+30, 3); sfxPlop();
+  const lim = hit.log ? [hit.r-16, hit.hh-6] : hit.duck ? [6, 5] : [hit.r*0.45, hit.r*0.45];
+  frog.state = 'idle'; frog.pad = hit; frog.relX = clamp(frog.x-hit.cx, -lim[0], lim[0]); frog.relY = clamp(frog.y-hit.cy, -lim[1], lim[1]);
+  hit.bob = 1; addRipple(hit.cx, hit.cy, (hit.log ? hit.hh : hit.r)+30, 3); sfxPlop();
+  if(hit.duck) setTimeout(sfxQuack, 120); else if(hit.log || hit.stone) sfxKnock();
   burst(frog.x, frog.y, 8, ['#ffffff','#d8f6ff'], 90, 3.5, 0);
   if(!hit.turtle) frog.lastSafe = hit;
   if(Math.random() < 0.35) setTimeout(sfxCroak, 150);
@@ -401,8 +460,10 @@ function onTap(sx, sy){
   if(dist(wx,wy,frog.x,frog.y) < 30){ frog.puff = 1; sfxCroak(); return; }
   const dur = 0.62; let best = null, bd = 1e9;
   for(const p of pads){
-    const pp = padPos(p, time+dur), dTap = dist(wx,wy,pp.x,pp.y), dF = dist(frog.x,frog.y,pp.x,pp.y);
-    if(dTap < p.r+50 && dF < MAXJ + p.r*0.6 && dTap < bd){ bd = dTap; best = pp; }
+    const pp = padPos(p, time+dur);
+    if(p.log) pp.x += clamp(wx - pp.x, -(p.r-18), p.r-18);
+    const rr = p.log ? p.hh : p.r, dTap = dist(wx,wy,pp.x,pp.y), dF = dist(frog.x,frog.y,pp.x,pp.y);
+    if(dTap < rr+50 && dF < MAXJ + rr*0.6 && dTap < bd){ bd = dTap; best = pp; }
   }
   let tx, ty;
   if(best){ tx = best.x; ty = best.y; }
@@ -422,7 +483,7 @@ function update(dt){
     if(frog.state === 'pop'){ frog.popT += dt; if(frog.popT > 0.55) frog.state = 'idle'; }
     if(frog.state === 'win'){ winT += dt;
       if(Math.random() < dt*14) particles.push({x:frog.x+(Math.random()-0.5)*300, y:camY-10, vx:(Math.random()-0.5)*60, vy:60+Math.random()*80, life:1, decay:0.25, color:[C.sun,C.pink,'#7ad3ff','#ffffff','#b48cff'][Math.random()*5|0], size:5+Math.random()*4, grav:20, rot:Math.random()*TAU, kind:'conf'});
-      if(winT > 1.6 && document.getElementById('winScreen').hidden) showWin();
+      if(winT > 1.6 && !frog.winShown){ frog.winShown = true; showWin(); }
     }
   } else if(frog.state === 'jump'){
     frog.jt += dt; const k = Math.min(1, frog.jt/frog.jdur), e = k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
@@ -488,7 +549,7 @@ function drawCausticLayer(c, tile, ox, oy, alpha, top, bot){
 }
 
 /* --- tavirózsa-levél: előre megrajzolt kép (gyors) --- */
-function makePadSprite(R, rot, seed, k, goal){
+function makePadSprite(R, rot, seed, k, goal, pal){
   const m = 6, half = R+m, px = Math.ceil(half*2*k), cv2 = document.createElement('canvas'); cv2.width = cv2.height = px;
   const g = cv2.getContext('2d'); g.scale(px/(half*2), px/(half*2)); g.translate(half, half); g.lineJoin = 'round'; g.lineCap = 'round';
   const a0 = 0.34 + rot, a1 = TAU - 0.04 + rot;
@@ -498,7 +559,7 @@ function makePadSprite(R, rot, seed, k, goal){
   shape();
   const gr = g.createRadialGradient(-R*0.35,-R*0.4,R*0.05,0,0,R*1.05);
   if(goal){ gr.addColorStop(0,'#dcf8a8'); gr.addColorStop(0.55,'#93db5d'); gr.addColorStop(1,'#58aa3d'); }
-  else { gr.addColorStop(0,'#c2f08e'); gr.addColorStop(0.55,'#7acb4f'); gr.addColorStop(1,'#4c9c37'); }
+  else { const P = pal || ['#c2f08e','#7acb4f','#4c9c37']; gr.addColorStop(0,P[0]); gr.addColorStop(0.55,P[1]); gr.addColorStop(1,P[2]); }
   g.fillStyle = gr; g.fill();
   g.save(); shape(); g.clip();
   g.lineWidth = R*0.24; g.strokeStyle = 'rgba(40,100,35,.26)'; shape(); g.stroke();
@@ -530,7 +591,7 @@ function makePadSprite(R, rot, seed, k, goal){
 }
 function padSprite(p){
   const k = scale*dpr;
-  if(!p.spr || Math.abs(p.sprK-k) > 0.01){ p.spr = makePadSprite(p.r, p.rot, p.i*7+level*31+1, k, p.goal); p.sprK = k; }
+  if(!p.spr || Math.abs(p.sprK-k) > 0.01){ p.spr = makePadSprite(p.r, p.rot, p.i*7+level*31+1, k, p.goal, TH.pad); p.sprK = k; }
   return p.spr;
 }
 
@@ -562,6 +623,9 @@ function drawFlower(c,x,y,s){ // százszorszép a parton
 
 function drawPad(c, p){
   if(p.turtle){ drawTurtle(c, p, turtleSink(p,time)); return; }
+  if(p.log){ drawLog(c, p); return; }
+  if(p.stone){ drawStoneP(c, p); return; }
+  if(p.duck){ drawDuck(c, p); return; }
   const bob = 1 - Math.sin(p.bob*Math.PI*3)*0.05*p.bob, R = p.r, half = R+6;
   if(p.goal){
     const pulse = (Math.sin(time*3)+1)/2;
@@ -580,6 +644,74 @@ function drawPad(c, p){
   if(p.flower) drawLotus(c, -R*0.45, R*0.42, 13, p.i);
   if(p.goal){ drawLotus(c, -R*0.62, -R*0.18, 20, time*0.15); drawLotus(c, R*0.64, R*0.36, 14, -time*0.2); }
   c.restore();
+}
+function rrect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function drawLog(c, p){ // úszó farönk
+  const bob = 1 - Math.sin(p.bob*Math.PI*3)*0.04*p.bob, w = p.r*2, h = p.hh*2;
+  softShadow(c, p.cx+6, p.cy+10, p.r*1.05, p.hh*1.7, 0.32);
+  c.strokeStyle = 'rgba(255,255,255,.3)'; c.lineWidth = 3; ell(c, p.cx, p.cy, p.r+8, p.hh+8); c.stroke();
+  c.save(); c.translate(p.cx, p.cy); c.scale(1, bob); c.lineJoin = 'round';
+  const g = c.createLinearGradient(0,-p.hh,0,p.hh); g.addColorStop(0,'#cf9356'); g.addColorStop(0.5,'#a8682f'); g.addColorStop(1,'#73451c');
+  rrect(c, -p.r, -p.hh, w, h, p.hh); fillStroke(c, g, 2.8);
+  c.strokeStyle = 'rgba(70,40,15,.5)'; c.lineWidth = 1.7;
+  for(let i=0;i<8;i++){ const x = -p.r + 20 + i*(w-40)/7, yy = -p.hh + 6 + rnd(p.i*9+i)*(h-12); c.beginPath(); c.moveTo(x-13, yy); c.quadraticCurveTo(x, yy-2.5, x+13, yy+1); c.stroke(); }
+  c.fillStyle = 'rgba(255,235,200,.28)'; rrect(c, -p.r+12, -p.hh+4, w-24, h*0.22, 4); c.fill();
+  for(const s of [-1,1]){ const ex = s*(p.r - p.hh*0.4); ell(c, ex, 0, p.hh*0.4, p.hh*0.92); fillStroke(c, '#e8c088', 2.2);
+    c.strokeStyle = 'rgba(130,80,35,.6)'; c.lineWidth = 1.2; for(const k of [0.66,0.33]){ ell(c, ex, 0, p.hh*0.4*k, p.hh*0.92*k); c.stroke(); } }
+  c.save(); c.translate(p.r*0.3, -p.hh+2); c.rotate(-0.4); rrect(c,-3,-11,6,13,3); fillStroke(c,'#8f5a28',1.8);
+  ell(c, 7, -13, 7, 4, -0.5); fillStroke(c, TH.night ? '#5f9a6a' : '#e08a2a', 1.4); c.restore();
+  ell(c, -p.r*0.35, p.hh*0.35, 7, 4.5, 0.2); c.fillStyle = 'rgba(120,180,70,.7)'; c.fill();
+  c.restore();
+}
+function drawStoneP(c, p){ // lépőkő
+  const bob = 1 - Math.sin(p.bob*Math.PI*3)*0.02*p.bob;
+  softShadow(c, p.cx+5, p.cy+8, p.r*1.12, p.r, 0.36);
+  c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 3; ell(c, p.cx, p.cy, p.r+5, p.r*0.92+5); c.stroke();
+  c.save(); c.translate(p.cx, p.cy); c.scale(bob, bob); c.rotate(p.rot*0.2); c.lineJoin = 'round';
+  const g = c.createRadialGradient(-p.r*0.35,-p.r*0.4,2,0,0,p.r*1.1);
+  g.addColorStop(0, TH.night ? '#c4cde0' : '#f2efe8'); g.addColorStop(1, TH.night ? '#5b667e' : '#9a948a');
+  c.beginPath(); for(let k=0;k<=28;k++){ const a = k/28*TAU, w = p.r*(1 + 0.06*Math.sin(a*3+p.i) + 0.04*Math.sin(a*5+p.i*2)); c.lineTo(Math.cos(a)*w, Math.sin(a)*w*0.92); }
+  c.closePath(); fillStroke(c, g, 2.8);
+  c.fillStyle = 'rgba(110,170,70,.6)'; ell(c, p.r*0.32, p.r*0.32, p.r*0.36, p.r*0.2, 0.4); c.fill(); ell(c, -p.r*0.48, p.r*0.12, p.r*0.15, p.r*0.1); c.fill();
+  c.strokeStyle = 'rgba(80,75,70,.45)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(-p.r*0.2,-p.r*0.55); c.lineTo(0,-p.r*0.15); c.lineTo(-p.r*0.12,p.r*0.2); c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.4)'; ell(c, -p.r*0.35, -p.r*0.38, p.r*0.22, p.r*0.12, -0.5); c.fill();
+  c.restore();
+}
+function drawDuck(c, p){ // úszó kacsa, a hátán lehet utazni
+  const dir = Math.cos(time*p.spd + p.ph) >= 0 ? 1 : -1, R = p.r, bob = 1 - Math.sin(p.bob*Math.PI*3)*0.05*p.bob;
+  softShadow(c, p.cx+5, p.cy+9, R*1.3, R*0.95, 0.3);
+  c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 2.5;
+  for(let k=1;k<=3;k++){ c.globalAlpha = 0.6/k; c.beginPath(); c.arc(p.cx - dir*(R*0.7 + k*12), p.cy, R*0.45 + k*7, dir > 0 ? Math.PI*0.62 : -Math.PI*0.38, dir > 0 ? Math.PI*1.38 : Math.PI*0.38); c.stroke(); }
+  c.globalAlpha = 1;
+  c.save(); c.translate(p.cx, p.cy); c.scale(dir*bob, bob); c.lineJoin = 'round';
+  c.beginPath(); c.moveTo(-R*0.92,-7); c.quadraticCurveTo(-R*1.35,0,-R*0.92,7); c.closePath(); fillStroke(c, '#5a4a3a', 2);
+  ell(c, 0, 0, R*1.05, R*0.78); const g = c.createRadialGradient(-R*0.3,-R*0.3,2,0,0,R*1.1); g.addColorStop(0,'#d9c4a4'); g.addColorStop(1,'#9c7c58'); fillStroke(c, g, 2.8);
+  for(const s of [-1,1]){ ell(c, -R*0.12, s*R*0.48, R*0.6, R*0.26, s*0.12); fillStroke(c, '#8a6a48', 2.2);
+    ell(c, -R*0.3, s*R*0.5, R*0.2, R*0.1, s*0.12); c.fillStyle = '#3f6fd6'; c.fill(); }
+  ell(c, R*0.9, 0, R*0.44, R*0.42); const hg = c.createRadialGradient(R*0.8,-R*0.15,1,R*0.9,0,R*0.5); hg.addColorStop(0,'#4fd08a'); hg.addColorStop(1,'#1f7a48'); fillStroke(c, hg, 2.6);
+  c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.beginPath(); c.arc(R*0.9, 0, R*0.45, Math.PI*0.62, Math.PI*1.38); c.stroke();
+  c.beginPath(); c.moveTo(R*1.25,-7); c.quadraticCurveTo(R*1.72,0,R*1.25,7); c.closePath(); fillStroke(c, '#ffb21f', 2.2);
+  for(const s of [-1,1]){ ell(c, R*1.05, s*R*0.22, 3, 3); c.fillStyle = '#111'; c.fill(); ell(c, R*1.02, s*R*0.22-1.1, 1, 1); c.fillStyle = '#fff'; c.fill(); }
+  c.restore();
+}
+function leafShape(c,s){ c.beginPath(); c.moveTo(0,-s); c.quadraticCurveTo(s*0.9,-s*0.3,0,s); c.quadraticCurveTo(-s*0.9,-s*0.3,0,-s); }
+function drawAmbient(c){
+  if(TH.ambient === 'butterflies'){ drawButterflies(c); return; }
+  const left = -offX/scale, W = WORLD_W + 2*offX/scale, fire = TH.ambient === 'fireflies', n = fire ? 12 : 9;
+  for(let i=0;i<n;i++){
+    if(fire){
+      const x = left + (((rnd(i*13)*W + Math.sin(time*0.4+i*2)*60) % W) + W) % W, y = camY + rnd(i*17)*viewH + Math.sin(time*0.7+i)*30;
+      const tw = 0.5 + 0.5*Math.sin(time*3 + i*1.7);
+      const g = c.createRadialGradient(x,y,0,x,y,16); g.addColorStop(0,'rgba(240,255,140,'+(0.8*tw)+')'); g.addColorStop(1,'rgba(240,255,140,0)');
+      c.fillStyle = g; ell(c,x,y,16,16); c.fill(); c.fillStyle = 'rgba(255,255,210,'+(0.6+0.4*tw)+')'; ell(c,x,y,2.4,2.4); c.fill();
+    } else {
+      const sp = 18 + rnd(i*7)*14, x = left + ((rnd(i*13)*W + time*sp) % (W+40)) - 20, y = camY + ((rnd(i*17)*viewH + time*(25+rnd(i*5)*20)) % (viewH+40)) - 20;
+      c.save(); c.translate(x,y); c.rotate(time*(1+rnd(i)) + i);
+      if(TH.ambient === 'leaves'){ c.scale(1, 0.6 + 0.4*Math.sin(time*3+i)); leafShape(c, 9); fillStroke(c, ['#f28c28','#e8562a','#f2c14e'][i%3], 1.4); }
+      else { ell(c,0,0,5.5,3.2); c.fillStyle = ['#ffc2d6','#ff9cc0','#ffffff'][i%3]; c.fill(); }
+      c.restore();
+    }
+  }
 }
 function hexPath(c,x,y,r){ c.beginPath(); for(let i=0;i<6;i++){ const a = i*TAU/6 + Math.PI/6; c.lineTo(x+Math.cos(a)*r, y+Math.sin(a)*r); } c.closePath(); }
 function drawTurtle(c, p, sink){
@@ -612,6 +744,15 @@ function drawTurtle(c, p, sink){
 }
 function drawFly(c, p){
   if(!p.fly || p.flyGot) return; const f = flyPos(p);
+  if(TH.night){
+    const tw = 0.7 + 0.3*Math.sin(time*6 + p.i);
+    const gl = c.createRadialGradient(f.x,f.y+3,0,f.x,f.y+3,26); gl.addColorStop(0,'rgba(240,255,120,'+(0.9*tw)+')'); gl.addColorStop(1,'rgba(240,255,120,0)');
+    c.fillStyle = gl; ell(c, f.x, f.y+3, 26, 26); c.fill();
+    c.save(); c.translate(f.x, f.y); const w = Math.sin(time*50)*0.5; c.globalAlpha = 0.7;
+    for(const s of [-1,1]){ ell(c, s*5.5, -2, 7, 3.8, s*(0.5-w)); fillStroke(c, '#e8f4ff', 1.2); }
+    c.globalAlpha = 1; ell(c, 0, -1, 3.6, 5); fillStroke(c, '#3a3326', 1.4); ell(c, 0, 5, 3.4, 4); c.fillStyle = '#f6ff8a'; c.fill();
+    c.restore(); return;
+  }
   const hg = c.createRadialGradient(f.x,f.y,0,f.x,f.y,18); hg.addColorStop(0,'rgba(255,245,160,.55)'); hg.addColorStop(1,'rgba(255,245,160,0)');
   c.fillStyle = hg; ell(c, f.x, f.y, 18, 18); c.fill();
   softShadow(c, f.x+6, f.y+16, 8, 5, 0.25);
@@ -638,14 +779,14 @@ function drawBanks(c, top, bot){
       c.lineTo(outer, bot+12); c.closePath(); };
     path(-16); c.fillStyle = 'rgba(170,240,225,.3)'; c.fill();
     path(-7, true); c.fillStyle = 'rgba(255,255,255,.55)'; c.fill();
-    path(-5); c.fillStyle = '#efd38f'; c.fill();
+    path(-5); c.fillStyle = TH.sand; c.fill();
     c.fillStyle = 'rgba(170,130,70,.35)';
     for(let i=Math.floor(top/16); i<=Math.ceil(bot/16); i++){ const y = i*16 + rnd(i*3+side)*8; ell(c, bankEdge(y,side) + side*(1 + rnd(i*7)*3), y, 1.2, 1); c.fill(); }
     path(4);
-    const gg = c.createLinearGradient(side < 0 ? 22 : 378, 0, outer, 0); gg.addColorStop(0,'#9fe36c'); gg.addColorStop(1,'#68b942');
+    const gg = c.createLinearGradient(side < 0 ? 22 : 378, 0, outer, 0); gg.addColorStop(0,TH.grass[0]); gg.addColorStop(1,TH.grass[1]);
     c.fillStyle = gg; c.fill(); c.lineWidth = 3; c.strokeStyle = OUT; c.stroke();
     // fűszálak textúra
-    c.strokeStyle = 'rgba(60,130,40,.55)'; c.lineWidth = 1.6; c.lineCap = 'round';
+    c.strokeStyle = TH.tuft; c.lineWidth = 1.6; c.lineCap = 'round';
     const span = Math.abs(outer - (side < 0 ? 20 : 380));
     for(let i=Math.floor(top/24); i<=Math.ceil(bot/24); i++){
       for(let d=10; d<span; d+=22){
@@ -685,10 +826,24 @@ function drawWater(c, top, bot){
     const g = c.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0, i%2 ? 'rgba(20,90,140,.16)' : 'rgba(120,230,210,.16)'); g.addColorStop(1,'rgba(20,90,140,0)');
     c.fillStyle = g; ell(c,x,y,r,r); c.fill();
   }
+  if(TH.night){ // a hold tükörképe
+    const mx = 290, my = camY + viewH*0.3, mg = c.createRadialGradient(mx,my,0,mx,my,75);
+    mg.addColorStop(0,'rgba(255,250,215,.55)'); mg.addColorStop(0.35,'rgba(255,250,215,.22)'); mg.addColorStop(1,'rgba(255,250,215,0)');
+    c.fillStyle = mg; ell(c,mx,my,75,75); c.fill();
+    c.strokeStyle = 'rgba(255,250,220,.6)'; c.lineWidth = 2.4; c.lineCap = 'round';
+    for(let k=-3;k<=3;k++){ const yy = my + k*9, ww = 24 - Math.abs(k)*5 + Math.sin(time*2+k)*3; c.beginPath(); c.moveTo(mx-ww,yy); c.lineTo(mx+ww,yy); c.stroke(); }
+  }
+  if(TH.extraFlowers){ // úszó tavirózsák díszítésnek
+    for(let i=Math.floor(top/150); i<=Math.ceil(bot/150); i++){
+      const x = 45 + rnd(i*71)*310, y = i*150 + rnd(i*73)*80;
+      if(pads.some(p => dist(p.cx,p.cy,x,y) < p.r + 32)) continue;
+      drawLotus(c, x, y, 9 + rnd(i*79)*5, time*0.1 + i);
+    }
+  }
   // halak (víz alatt, halványan)
   for(let i=Math.floor(top/260); i<=Math.ceil(bot/260); i++){
     const dir = rnd(i*23) < 0.5 ? -1 : 1, sp = 14 + rnd(i*29)*12, x = ((time*sp*dir + rnd(i*31)*600) % 520 + 520) % 520 - 60, y = i*260 + rnd(i*37)*120;
-    c.save(); c.translate(x, y + Math.sin(time*2+i)*4); c.scale(dir, 1); c.globalAlpha = 0.5;
+    c.save(); c.translate(x, y + Math.sin(time*2+i)*4); c.scale(dir, 1); c.globalAlpha = TH.night ? 0.22 : 0.5;
     const wag = Math.sin(time*8 + i)*0.35;
     c.beginPath(); c.moveTo(-13,0); c.quadraticCurveTo(-22, -9 + wag*6, -27, -8 + wag*7); c.quadraticCurveTo(-22, 0 + wag*5, -27, 8 + wag*7); c.quadraticCurveTo(-22, 9 + wag*6, -13, 0); c.fillStyle = 'rgba(255,170,90,.8)'; c.fill();
     ell(c, -2, -7, 5, 3, -0.5); c.fill(); ell(c, -2, 7, 5, 3, 0.5); c.fill();
@@ -699,8 +854,8 @@ function drawWater(c, top, bot){
     c.globalAlpha = 1; c.restore();
   }
   // fényháló
-  drawCausticLayer(c, causticTiles[0], (time*7) % CT, (time*4) % CT, 0.14, top, bot);
-  drawCausticLayer(c, causticTiles[1], (-time*5) % CT, (time*8) % CT, 0.1, top, bot);
+  drawCausticLayer(c, causticTiles[0], (time*7) % CT, (time*4) % CT, 0.14*TH.caustic, top, bot);
+  drawCausticLayer(c, causticTiles[1], (-time*5) % CT, (time*8) % CT, 0.1*TH.caustic, top, bot);
   // hullámocskák
   c.strokeStyle = 'rgba(255,255,255,.4)'; c.lineWidth = 2.6; c.lineCap = 'round';
   for(let i=Math.floor(top/70); i<=Math.ceil(bot/70); i++){
@@ -779,7 +934,16 @@ function drawFrog(c, x, y, ang, sc, o){
     c.strokeStyle = 'rgba(30,90,30,.28)'; c.beginPath(); c.moveTo(s*11,-4); c.quadraticCurveTo(s*14,8,s*10,20); c.stroke();
   }
   const spot = (sx,sy,r) => { ell(c,sx,sy,r,r*1.15); c.fillStyle = dark; c.globalAlpha = 0.55; c.fill(); ell(c,sx-r*0.25,sy-r*0.3,r*0.45,r*0.45); c.fillStyle = light; c.globalAlpha = 0.4; c.fill(); c.globalAlpha = 1; };
-  spot(-4.5,10,3.6); spot(5,14,3); spot(1,3,2.4); spot(-1,19,2.2); spot(6,4,1.8); spot(-6,1,1.6);
+  const pat = o.pat || 'spots';
+  c.save(); sil(); c.clip();
+  if(pat === 'spots'){ spot(-4.5,10,3.6); spot(5,14,3); spot(1,3,2.4); spot(-1,19,2.2); spot(6,4,1.8); spot(-6,1,1.6); }
+  else if(pat === 'dots'){ c.fillStyle = dark; for(const [dx,dy,r] of [[-8,-1,2.8],[6,-4,2.3],[0,8,3.2],[-9,13,2.6],[9,14,2.8],[-3,21,2.1],[6,23,1.9],[-13,5,1.9],[13,5,1.9],[0,-9,1.9],[-6,-13,1.5],[6,-14,1.5]]){ ell(c,dx,dy,r,r); c.fill(); } }
+  else if(pat === 'stripes'){ c.strokeStyle = dark; c.lineWidth = 4.4; for(const yy of [-14,-3,8,19]){ c.beginPath(); c.moveTo(-24,yy+5); c.quadraticCurveTo(0,yy-4,24,yy+5); c.stroke(); } }
+  else if(pat === 'sides'){ for(const sd of [-1,1]){ c.strokeStyle = '#2f6fe0'; c.lineWidth = 5; c.beginPath(); c.moveTo(sd*15,-6); c.quadraticCurveTo(sd*20,8,sd*14,22); c.stroke(); c.strokeStyle = '#ffd23f'; c.lineWidth = 2; c.beginPath(); c.moveTo(sd*12.5,-5); c.quadraticCurveTo(sd*17,8,sd*11.5,21); c.stroke(); } }
+  else if(pat === 'hearts'){ c.fillStyle = dark; for(const [dx,dy,hs] of [[-6,5,4.2],[6,11,3.4],[-1,19,3.8]]){ c.beginPath(); c.moveTo(dx, dy+hs*0.9); c.bezierCurveTo(dx-hs*1.4, dy-hs*0.1, dx-hs*0.7, dy-hs*1.2, dx, dy-hs*0.4); c.bezierCurveTo(dx+hs*0.7, dy-hs*1.2, dx+hs*1.4, dy-hs*0.1, dx, dy+hs*0.9); c.fill(); } }
+  else if(pat === 'warts'){ for(let i=0;i<18;i++){ const a = rnd(i*3.1)*TAU, rr = rnd(i*5.7)*17, wx = Math.cos(a)*rr, wy = 4 + Math.sin(a)*rr*1.1, r = 1.4 + rnd(i*7.3)*1.7;
+      ell(c,wx,wy,r,r); c.fillStyle = dark; c.globalAlpha = 0.45; c.fill(); ell(c,wx-r*0.3,wy-r*0.3,r*0.5,r*0.5); c.fillStyle = light; c.globalAlpha = 0.75; c.fill(); c.globalAlpha = 1; } }
+  c.restore();
   c.save(); const shg = c.createRadialGradient(-7,-6,0,-7,-6,11); shg.addColorStop(0,'rgba(255,255,255,.55)'); shg.addColorStop(1,'rgba(255,255,255,0)');
   c.fillStyle = shg; ell(c,-7,-6,7,11,-0.3); c.fill(); c.restore();
   c.fillStyle = 'rgba(255,120,150,.5)'; ell(c,-12.5,-8,4.5,3); c.fill(); ell(c,12.5,-8,4.5,3); c.fill();
@@ -805,10 +969,19 @@ function drawFrog(c, x, y, ang, sc, o){
       c.beginPath(); c.arc(ex, ey-2, er*0.55, 0.15*Math.PI, 0.85*Math.PI); c.lineWidth = 2.2; c.stroke();
     } else {
       const px = ex + (o.lookX||0), py = ey - 2 + (o.lookY||0);
-      ell(c, px, py, er*0.5, er*0.54); c.fillStyle = '#7a5a20'; c.fill();
-      ell(c, px, py, er*0.36, er*0.4); c.fillStyle = '#111a14'; c.fill();
+      ell(c, px, py, er*0.5, er*0.54); c.fillStyle = o.iris || '#7a5a20'; c.fill();
+      if(o.slit) ell(c, px, py, er*0.13, er*0.42); else ell(c, px, py, er*0.36, er*0.4); c.fillStyle = '#111a14'; c.fill();
       c.fillStyle = '#fff'; ell(c, px-er*0.18, py-er*0.2, er*0.16, er*0.16); c.fill(); ell(c, px+er*0.17, py+er*0.18, er*0.07, er*0.07); c.fill();
     }
+  }
+  if(o.acc === 'crown'){
+    c.save(); c.translate(0, 0); c.beginPath(); c.moveTo(-8,4); c.lineTo(-9.5,-5); c.lineTo(-4.5,-0.5); c.lineTo(0,-8.5); c.lineTo(4.5,-0.5); c.lineTo(9.5,-5); c.lineTo(8,4); c.closePath();
+    fillStroke(c, '#ffd23f', 1.8); c.fillStyle = '#ff4f6d'; ell(c,0,0.5,1.9,1.9); c.fill(); c.fillStyle = '#4fb3ff'; ell(c,-5,1.5,1.3,1.3); c.fill(); ell(c,5,1.5,1.3,1.3); c.fill(); c.restore();
+  }
+  if(o.acc === 'bow'){
+    c.save(); c.translate(0, -1);
+    for(const sd of [-1,1]){ c.beginPath(); c.moveTo(0,0); c.lineTo(sd*10,-6); c.quadraticCurveTo(sd*12,0,sd*10,6); c.closePath(); fillStroke(c, '#ff4f8b', 1.6); }
+    ell(c,0,0,2.8,2.8); fillStroke(c, '#ff86b0', 1.4); c.restore();
   }
   c.restore();
 }
@@ -816,7 +989,7 @@ function drawFrog(c, x, y, ang, sc, o){
 function draw(){
   ensureCaustics();
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  const g = ctx.createLinearGradient(0,0,0,cssH); g.addColorStop(0, '#62d2e8'); g.addColorStop(1, '#2d93c4');
+  const g = ctx.createLinearGradient(0,0,0,cssH); g.addColorStop(0, TH.water[0]); g.addColorStop(1, TH.water[1]);
   ctx.fillStyle = g; ctx.fillRect(0,0,cssW,cssH);
   ctx.save(); ctx.translate(offX, 0); ctx.scale(scale, scale); ctx.translate(0, -camY);
   const top = camY - 60, bot = camY + viewH + 60;
@@ -832,7 +1005,7 @@ function draw(){
   if(next && frog.state === 'idle' && idleT > 2.5){
     const pulse = (Math.sin(time*5)+1)/2;
     ctx.strokeStyle = 'rgba(255,240,120,' + (0.5+pulse*0.5) + ')'; ctx.lineWidth = 6 + pulse*3;
-    ell(ctx, next.cx, next.cy, next.r + 10 + pulse*8, next.r + 10 + pulse*8); ctx.stroke();
+    ell(ctx, next.cx, next.cy, next.r + 10 + pulse*8, (next.log ? next.hh : next.r) + 10 + pulse*8); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,.85)';
     for(let k=1;k<4;k++){ const t = ((k/4) + time*0.6) % 1; ell(ctx, lerp(frog.x, next.cx, t), lerp(frog.y, next.cy, t), 4, 4); ctx.fill(); }
   }
@@ -841,7 +1014,7 @@ function draw(){
   const goal = pads[pads.length-1];
   const fj = frog.state === 'win' ? Math.abs(Math.sin(winT*6))*0.35 : Math.abs(Math.sin(time*2))*0.06;
   softShadow(ctx, goal.cx+34+fj*14, goal.cy-14+fj*18, 24, 25, 0.3);
-  drawFrog(ctx, goal.cx + 30, goal.cy - 22, -0.3 + Math.sin(time*1.5)*0.1, 0.9 + fj, {color:'#ffb347', mid:'#ef8a26', dark:'#c4631a', light:'#ffe3b3', air:fj*2, blink:(time%4.3)<0.12});
+  drawFrog(ctx, goal.cx + 30, goal.cy - 22, -0.3 + Math.sin(time*1.5)*0.1, 0.9 + fj, Object.assign({}, FRIEND, {air:fj*2, blink:(time%4.3)<0.12}));
   for(const p of pads) drawFly(ctx, p);
   let fsc = 1, sx = 1, sy = 1, ang = frog.ang, air = 0, alpha = 1, oh = false, flail = 0, jumpH = 0;
   if(frog.state === 'jump'){
@@ -865,7 +1038,7 @@ function draw(){
   if(frog.state !== 'sink') softShadow(ctx, frog.x + 4 + jumpH*18, frog.y + 8 + jumpH*22, 28*(1 - jumpH*0.3), 30*(1 - jumpH*0.3), 0.42 - jumpH*0.18);
   ctx.globalAlpha = alpha;
   const lookX = next ? clamp((next.cx - frog.x)/60, -1.5, 1.5) : 0;
-  drawFrog(ctx, frog.x, frog.y, ang, fsc * 1.05, {sx, sy, air, puff:Math.sin(frog.puff*Math.PI), oh, flail, t:time, blink:frog.blink && frog.state==='idle', lookX, lookY:-0.5, tongue:frog.tongue, tongueTo:frog.tongueTo});
+  drawFrog(ctx, frog.x, frog.y, ang, fsc * 1.05, {...SP, sx, sy, air, puff:Math.sin(frog.puff*Math.PI), oh, flail, t:time, blink:frog.blink && frog.state==='idle', lookX, lookY:-0.5, tongue:frog.tongue, tongueTo:frog.tongueTo});
   ctx.globalAlpha = 1;
   for(const q of particles){
     ctx.globalAlpha = Math.max(0, Math.min(1, q.life));
@@ -874,10 +1047,10 @@ function draw(){
     else { ell(ctx, q.x, q.y, q.size, q.size); ctx.fillStyle = q.color; ctx.fill(); if(q.size > 4){ ell(ctx, q.x-q.size*0.3, q.y-q.size*0.3, q.size*0.3, q.size*0.3); ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fill(); } }
   }
   ctx.globalAlpha = 1;
-  drawButterflies(ctx);
+  drawAmbient(ctx);
   ctx.restore();
   const vg = ctx.createRadialGradient(cssW/2, cssH*0.5, Math.min(cssW,cssH)*0.45, cssW/2, cssH*0.5, Math.max(cssW,cssH)*0.8);
-  vg.addColorStop(0,'rgba(0,35,55,0)'); vg.addColorStop(1,'rgba(0,35,55,.22)');
+  vg.addColorStop(0,'rgba(0,35,55,0)'); vg.addColorStop(1,'rgba(0,35,55,'+TH.vign+')');
   ctx.fillStyle = vg; ctx.fillRect(0,0,cssW,cssH);
 }
 
@@ -896,6 +1069,26 @@ function updateHud(){
 }
 function starSvg(){ return '<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.8-4.9 4.6 1.3 6.5L12 17.2l-5.9 3.2 1.3-6.5L2.5 9.3l6.6-.8z" fill="#ffd23f" stroke="#1d3a2a" stroke-width="1.8" stroke-linejoin="round"/></svg>'; }
 function showWin(){ $('winStars').innerHTML = starSvg()+starSvg()+starSvg(); $('winScreen').hidden = false; }
+function buildPickers(){
+  const fp = $('frogPick'); fp.innerHTML = '';
+  FROGS.forEach((f,i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role','radio'); b.setAttribute('aria-label', f.name);
+    const cc = document.createElement('canvas'); cc.width = cc.height = 128; b.appendChild(cc);
+    b.addEventListener('click', () => { initAudio(); SP = FROGS[i]; store('ugri-beka-faj', f.id); FRIEND = pickFriend(); markPick(); sfxRibbit(); });
+    fp.appendChild(b);
+  });
+  const lp = $('levelPick'); lp.innerHTML = '';
+  LEVEL_INFO.forEach((L,i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role','radio'); b.setAttribute('aria-label', (i+1) + '. pálya: ' + L.name);
+    b.textContent = L.icon; b.addEventListener('click', () => { initAudio(); buildLevel(i); markPick(); sfxPop(); });
+    lp.appendChild(b);
+  });
+  $('dots').innerHTML = LEVELS.map(() => '<i></i>').join('');
+}
+function markPick(){
+  [...$('frogPick').children].forEach((b,i) => b.setAttribute('aria-checked', String(FROGS[i] === SP)));
+  [...$('levelPick').children].forEach((b,i) => b.setAttribute('aria-checked', String(i === level)));
+}
 $('playBtn').addEventListener('click', () => { initAudio(); $('startScreen').hidden = true; running = true; sfxCroak(); });
 $('againBtn').addEventListener('click', () => { initAudio(); $('winScreen').hidden = true; buildLevel(level); });
 $('nextBtn').addEventListener('click', () => { initAudio(); $('winScreen').hidden = true; buildLevel((level+1) % LEVELS.length); });
@@ -913,7 +1106,7 @@ function makeQr(){
   c.fillStyle = '#fffaf0'; c.fillRect(0,0,640,760); c.drawImage(src, 64, 64, 512, 512);
   c.fillStyle = '#2f6b23'; c.font = '800 64px "Baloo 2", "Trebuchet MS", sans-serif'; c.textAlign = 'center'; c.fillText('Ugri Béka', 320, 660);
   c.fillStyle = '#3c5446'; c.font = '28px system-ui, sans-serif'; c.fillText('Olvasd be, és ugráljunk!', 320, 710);
-  drawFrog(c, 560, 650, 0.3, 1.4, {});
+  drawFrog(c, 560, 650, 0.3, 1.4, SP);
   qrData = out.toDataURL('image/png'); $('qrImg').src = qrData;
 }
 $('qrBtn').addEventListener('click', () => { makeQr(); $('qrScreen').hidden = false; $('shareBtn').hidden = !navigator.share; });
@@ -943,12 +1136,18 @@ $('shareBtn').addEventListener('click', () => { navigator.share({title:'Ugri Bé
     drawLotus(c, 96, 222, 24, t0*0.2);
     const h = Math.abs(Math.sin(t0*2.5));
     softShadow(c, 186 + h*20, 178 + h*18, 60*(1-h*0.25), 64*(1-h*0.25), 0.3);
-    drawFrog(c, 180, 165 - h*14, Math.sin(t0*1.2)*0.15, 2.5 + h*0.5, {air:h, blink:(t0%3)<0.1, lookY:-0.5});
+    drawFrog(c, 180, 165 - h*14, Math.sin(t0*1.2)*0.15, 2.5 + h*0.5, Object.assign({}, SP, {air:h, blink:(t0%3)<0.1, lookY:-0.5}));
+    [...$('frogPick').children].forEach((b,i) => { const cc = b.firstChild.getContext('2d'), sel = FROGS[i] === SP, hh = sel ? h : 0;
+      cc.clearRect(0,0,128,128); drawFrog(cc, 64, 58 - hh*8, 0, 1.5 + hh*0.15, Object.assign({}, FROGS[i], {air:hh, blink:((t0+i*0.7)%3.2)<0.1, lookY:-0.5})); });
     if(!$('startScreen').hidden) requestAnimationFrame(anim);
   })();
 })();
 
+if(location.search.indexOf('debug') >= 0) window.__ugri = { state: () => ({ level, flies, frog:{x:frog.x, y:frog.y, state:frog.state, pad:frog.pad && frog.pad.i}, pads: pads.map(p => ({i:p.i, x:p.cx, y:p.cy, r:p.r, log:p.log, duck:p.duck})), camY, scale, offX }) };
+buildPickers();
 buildLevel(0);
+markPick();
 requestAnimationFrame(loop);
 })();
 </script>
+

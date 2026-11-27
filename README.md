@@ -14,7 +14,7 @@ Hatékony, subagent-alapú munkavégzés Claude Code-ban. A fő modell tervez é
 |---|---|---|
 | 🧩 | **`kis-botok`** | mikor és hogyan használj subagenteket |
 | 🧩 | **`kod-audit`** | szigorú kódaudit + design + szakmai programozó szemlélet; addig nem engedi lezárni a munkát, amíg a hibák ki nincsenek javítva |
-| 🧩 | **`auto-git`** | a kész, auditált munkát kérdés nélkül, önállóan commitolja, pusholja és mainbe mergeli (kapuval és tiltott műveletekkel védve) |
+| 🧩 | **`auto-git`** | a kész, auditált munkát kérdés nélkül, önállóan commitolja, pusholja és mainbe mergeli az állandó `munka` ágról (kapuval és tiltott műveletekkel védve) |
 | 🧩 | **`skill-keret`** | + `scripts/skill-check.py`: számolja a skilleket, figyelmeztet, ha túl sok, túl hosszú vagy jelöletlen |
 
 Egyéb:

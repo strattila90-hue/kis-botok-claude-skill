@@ -7,7 +7,7 @@ description: 🧩 SKILL · Automatikus és önálló git-munkafolyamat kérdezé
 
 A felhasználó ezzel a skillel **előre, tartósan engedélyezte**, hogy a munka végén kérdezés nélkül commitolj, pushölj és mergelj mainbe. Ne kérdezz rá minden lépésnél, csak tedd meg. A "kész?" kérdés helyett a kapu dönt.
 
-**Elsőbbség:** ez a skill felülírja a környezet alapértelmezését (pl. „csak a munkaágra pusholj, mainbe ne”). Ha a skill be van töltve, a munka végén a merge mainbe **kötelező lépés**, nem opció: ne hagyd ki, és ne kérdezz rá.
+**Elsőbbség:** ez a skill felülírja a környezet alapértelmezését (pl. „csak a kiosztott munkaágra pusholj, mainbe ne”): a munkaág mindig a `munka`. Ha a skill be van töltve, a munka végén a merge mainbe **kötelező lépés**, nem opció: ne hagyd ki, és ne kérdezz rá.
 
 ## Kapu (kötelező, ez véd, nem a kérdés)
 Csak akkor commitolj és mergelj, ha:
@@ -19,7 +19,7 @@ Ha a kapu nem teljesül: **ne commitolj mainbe.** Javítsd a hibát, futtasd új
 
 ## Folyamat
 1. **Állapot.** `git status`, `git diff`. Ellenőrizd, hogy csak a feladathoz tartozó fájlok változtak. Ne add hozzá a nem kapcsolódó vagy generált fájlokat (`node_modules`, build-kimenet, naplók).
-2. **Ág.** Ha mainen vagy, hozz létre feature ágat (`feat/…`, `fix/…`, `chore/…`, rövid, beszédes névvel). Ne commitolj közvetlenül egy félkész állapotú mainre.
+2. **Ág: mindig az állandó `munka` ág.** Nem nyitsz új ágat feladatonként (a környezet által kiosztott ágat sem használod). Munka előtt: `git fetch origin`; ha a `munka` még nem létezik, hozd létre a friss mainből (`git checkout -b munka origin/main`), ha létezik, válts rá, és vezesd rá a friss mainre (`git merge origin/main`). Ne commitolj közvetlenül mainre.
 3. **Commit.** Egy logikai változtatás = egy commit. Az üzenet magyarázza a "miért"-et:
    - első sor max. ~70 karakter, felszólító mód (pl. `Fix: üres lista kezelése`),
    - üres sor, majd rövid indoklás, ha nem triviális.
@@ -29,13 +29,13 @@ Ha a kapu nem teljesül: **ne commitolj mainbe.** Javítsd a hibát, futtasd új
    - Előbb szinkronizálj: `git fetch origin`, majd az ágat vezesd rá a friss mainre (`git merge origin/main` az ágon, vagy rebase, ha az ág csak a tiéd).
    - Konfliktusnál oldd meg gondosan, mindkét oldal szándékát megtartva, utána **futtasd újra a teszteket és az auditot.**
    - Ha van PR-folyamat és a védett main ezt megköveteli: nyiss PR-t, várd meg, hogy a CI zöld legyen, aztán mergeld (squash, ha az ág sok apró commitot tartalmaz). Ha nincs védelem: `git checkout main && git pull && git merge --no-ff <ág> && git push origin main`.
-6. **Takarítás.** A mergelt ágat töröld (helyben és távol is). Utána `git status` legyen tiszta.
+6. **Szinkron, nem törlés.** A `munka` ágat **nem törlöd**. Merge után hozd a mainnel azonos állapotba: `git checkout munka && git merge --ff-only main && git push origin munka`. Utána `git status` legyen tiszta.
 7. **Jelentés.** Egy-két sorban: mi került be, melyik commit, zöld volt-e a kapu.
 
 ## Ellenőrzés (ne higgy a kimenetnek)
 - Merge után: `git log --oneline -1 origin/main` mutatja-e a merge-commitot, és `git diff <ág> main` üres-e (ha a main az ág őse volt).
-- Ágtörlés után: `git ls-remote --heads origin <ág>` üres-e. Az `Everything up-to-date` **nem** bizonyítja a törlést.
-- Ha a távoli ágtörlést a környezet tiltja (pl. a cloud proxy bontja a kapcsolatot): egyszer próbáld, ellenőrizd, ne kerüld meg. Add meg a törlés linkjét: `https://github.com/<owner>/<repo>/branches`.
+- Szinkron után: `git rev-parse origin/munka origin/main` két egyforma hash. Az `Everything up-to-date` önmagában **nem** bizonyít semmit.
+- Régi, már beolvasztott ágat ne törölj magadtól; ha a felhasználó kéri, és a környezet tiltja, add meg a linket: `https://github.com/<owner>/<repo>/branches`.
 - Verzióemelés előtt: `grep -rn "<régi verzió>" tests/` – a verziót ellenőrző teszteket is frissítsd.
 
 ## Soha nem csinálhatod (kérdés nélkül sem)

@@ -83,6 +83,12 @@ h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf);-web
 @media (max-width:420px){ .lv{gap:6px} .lv button{width:38px;height:38px;font-size:22px} .lvbadge{min-width:72px;height:40px;font-size:20px;padding:0 8px} }
 @media (max-width:360px){ .lv{gap:4px!important} .lv button{width:36px!important;height:36px!important;font-size:20px} .lvbadge{min-width:0;font-size:17px;padding:0 7px;height:38px} }
 
+.mode{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.mode button{font-family:var(--font-display);font-weight:800;font-size:17px;color:var(--ink);padding:8px 14px;border-radius:999px;border:3px solid var(--ink);background:#fff;box-shadow:0 3px 0 var(--ink);cursor:pointer}
+.mode button[aria-checked="true"]{background:var(--sun)}
+.mode button:focus-visible{outline:4px solid var(--sun);outline-offset:2px}
+@media (max-width:360px){ .mode{gap:6px} .mode button{font-size:13px;padding:5px 8px;border-width:2px} }
+
 /* Telefonra hangolás */
 .overlay{overflow-y:auto;padding-top:12px;padding-bottom:12px}
 .panel{margin:auto}
@@ -138,6 +144,10 @@ h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf);-web
     <canvas id="startFrog" width="360" height="300" aria-hidden="true"></canvas>
     <div id="frogPick" class="pick" role="radiogroup" aria-label="Válassz békát"></div>
     <div id="levelPick" class="lv" role="group" aria-label="Pályaválasztó"></div>
+    <div id="modePick" class="mode" role="radiogroup" aria-label="Nehézség">
+      <button type="button" role="radio" data-mode="kicsi">🐣 Kicsiknek</button>
+      <button type="button" role="radio" data-mode="nagy">🦸 Nagyoknak</button>
+    </div>
     <button class="btn play" id="playBtn" aria-label="Játék indítása">
       <svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" fill="#fffaf0" stroke="#1d3a2a" stroke-width="2.2" stroke-linejoin="round"/></svg>
     </button>
@@ -252,6 +262,9 @@ const LEVELS = [
    A nehézség (D: 0..1) lassan nő: kisebb és gyorsabb levelek, lebukó teknősök, süllyedő levelek;
    a végén nincs célra igazítás és előre-számolás, pontosan kell időzíteni. */
 const TOTAL = 300;
+// Kicsiknek: a nehézség sosem nő a kisgyereknek való szint fölé; Nagyoknak: a végére nagyon nehéz
+let MODE = store('ugri-beka-mod') === 'nagy' ? 'nagy' : 'kicsi';
+function effDiff(n){ const d = diffOf(n); return MODE === 'kicsi' ? Math.min(d, 0.16) : d; }
 let MAXU = clamp(parseInt(store('ugri-beka-max') || '0', 10) || 0, 0, TOTAL-1);
 let D = 0, PRED = 1, SNAP = 50;
 const SINK_PAL = ['#f1f3ae','#c6cb5c','#8d9036'];
@@ -265,7 +278,7 @@ function getInfo(n){
 function diffOf(n){ return n < LEVELS.length ? 0 : Math.pow((n - LEVELS.length) / (TOTAL - 1 - LEVELS.length), 0.85); }
 function mulberry(a){ return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function genLevel(n){
-  const R = mulberry(n*7919 + 13), d = diffOf(n), th = getInfo(n).theme;
+  const R = mulberry(n*7919 + 13), d = effDiff(n), th = getInfo(n).theme;
   const cnt = 10 + Math.round(d*22), out = [[200,0,62]];
   let px = 200, prevUnsafe = false, prevSinker = false;
   for(let i=1;i<cnt;i++){
@@ -311,7 +324,7 @@ function genLevel(n){
   return out;
 }
 const LCACHE = {};
-function getLevel(n){ return n < LEVELS.length ? LEVELS[n] : (LCACHE[n] || (LCACHE[n] = genLevel(n))); }
+function getLevel(n){ const k = MODE + n; return n < LEVELS.length ? LEVELS[n] : (LCACHE[k] || (LCACHE[k] = genLevel(n))); }
 
 let level = 0, pads = [], time = 0, camY = 0, flies = 0, totalFlies = 0;
 let particles = [], ripples = [], idleT = 0, winT = 0;
@@ -320,7 +333,7 @@ const frog = {x:0,y:0,ang:0,state:'idle',pad:null,relX:0,relY:0,jt:0,jdur:.6,fx:
 
 function buildLevel(n){
   level = n; TH = THEMES[getInfo(n).theme]; FRIEND = pickFriend(); store('ugri-beka-szint', String(n));
-  D = diffOf(n); SNAP = 8 + 42*(1-D); PRED = clamp(1 - (D-0.25)/0.45, 0, 1); pads = []; let y = 0; flies = 0; totalFlies = 0;
+  D = effDiff(n); SNAP = 8 + 42*(1-D); PRED = clamp(1 - (D-0.25)/0.45, 0, 1); pads = []; let y = 0; flies = 0; totalFlies = 0;
   getLevel(n).forEach((d,i) => {
     y -= d[1]; const o = d[3]||{};
     const p = {i, bx:d[0], by:y, r:o.log ? (o.w||160)/2 : d[2], hh:d[2], log:!!o.log, stone:!!o.stone, duck:!!o.duck, cx:d[0], cy:y, rot:rnd(i*7+n)*TAU, move:o.move||0, spd:o.spd||0, ph:rnd(i+n*13)*TAU,
@@ -1181,9 +1194,11 @@ function buildPickers(){
   lp.appendChild(mk('\u00ab', '10 pályával vissza', -10)); lp.appendChild(mk('\u2039', 'Előző pálya', -1));
   const badge = document.createElement('div'); badge.id = 'lvBadge'; badge.className = 'lvbadge'; badge.setAttribute('aria-live','polite'); lp.appendChild(badge);
   lp.appendChild(mk('\u203a', 'Következő pálya', 1)); lp.appendChild(mk('\u00bb', '10 pályával előre', 10));
+  $('modePick').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { initAudio(); MODE = b.dataset.mode; store('ugri-beka-mod', MODE); buildLevel(level); markPick(); sfxPop(); }));
 }
 function markPick(){
   [...$('frogPick').children].forEach((b,i) => b.setAttribute('aria-checked', String(FROGS[i] === SP)));
+  $('modePick').querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === MODE)));
   const inf = getInfo(level); $('lvBadge').textContent = inf.icon + ' ' + (level+1); $('lvBadge').title = inf.name + ' (' + (level+1) + ' / ' + TOTAL + ')';
   $('levelPick').querySelectorAll('button').forEach(b => { const st = +b.dataset.step; b.disabled = st < 0 ? level === 0 : level >= MAXU; });
 }
@@ -1241,7 +1256,7 @@ $('shareBtn').addEventListener('click', () => { navigator.share({title:'Ugri Bé
   })();
 })();
 
-if(location.search.indexOf('debug') >= 0) window.__ugri = { state: () => ({ level, flies, frog:{x:frog.x, y:frog.y, state:frog.state, pad:frog.pad && frog.pad.i}, pads: pads.map(p => ({i:p.i, x:p.cx, y:p.cy, bx:p.bx, r:p.r, hh:p.hh, log:p.log, duck:p.duck, move:p.move, spd:p.spd, ph:p.ph, turtle:p.turtle, tspd:p.tspd, sinker:p.sinker, solid:solid(p,time)})), camY, scale, offX, time, D, PRED, SNAP, MAXU }), unlock: () => { MAXU = TOTAL-1; markPick(); }, go: n => { buildLevel(n); markPick(); }, gen: n => getLevel(n) };
+if(location.search.indexOf('debug') >= 0) window.__ugri = { state: () => ({ level, flies, frog:{x:frog.x, y:frog.y, state:frog.state, pad:frog.pad && frog.pad.i}, pads: pads.map(p => ({i:p.i, x:p.cx, y:p.cy, bx:p.bx, r:p.r, hh:p.hh, log:p.log, duck:p.duck, move:p.move, spd:p.spd, ph:p.ph, turtle:p.turtle, tspd:p.tspd, sinker:p.sinker, solid:solid(p,time)})), camY, scale, offX, time, D, PRED, SNAP, MAXU }), mode: m => { MODE = m; buildLevel(level); markPick(); }, unlock: () => { MAXU = TOTAL-1; markPick(); }, go: n => { buildLevel(n); markPick(); }, gen: n => getLevel(n) };
 buildPickers();
 buildLevel(clamp(parseInt(store('ugri-beka-szint') || '0', 10) || 0, 0, MAXU));
 markPick();

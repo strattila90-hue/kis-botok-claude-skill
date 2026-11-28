@@ -37,10 +37,11 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--water);color:var
 #dots i.on{background:var(--sun)}
 .overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   background:rgba(20,70,90,.35)}
-.panel{background:var(--card);border:5px solid var(--ink);border-radius:36px;box-shadow:0 10px 0 var(--ink);padding:24px 24px 28px;
+.panel{background:linear-gradient(180deg,#fffdf4 0%,#f2f9e4 100%);border:5px solid var(--ink);border-radius:36px;box-shadow:0 10px 0 var(--ink);padding:24px 24px 28px;
   max-width:min(440px,100%);width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;box-sizing:border-box}
-h1{margin:0;font-size:clamp(44px,12vw,64px);line-height:.95;color:var(--leaf-dark);text-wrap:balance;letter-spacing:.5px}
-h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf-dark)}
+h1{margin:0;font-size:clamp(44px,12vw,64px);line-height:.95;color:var(--leaf);text-wrap:balance;letter-spacing:.5px;
+  -webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 4px 0 var(--ink)}
+h2{margin:0;font-size:clamp(38px,10vw,54px);line-height:1;color:var(--leaf);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 4px 0 var(--ink)}
 .play{width:150px;height:150px;border-radius:50%;background:var(--leaf);display:grid;place-items:center;padding:0}
 .play svg{width:80px;height:80px;margin-left:10px}
 .row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
@@ -934,6 +935,17 @@ function drawWater(c, top, bot){
     ell(c, 11, -2, 1.3, 1.3); c.fillStyle = '#222'; c.fill();
     c.globalAlpha = 1; c.restore();
   }
+  // lassan úszó felhőárnyékok és napfénycsíkok (éjjel nincs)
+  if(!TH.night){
+    for(let i=Math.floor(top/320)-1; i<=Math.ceil(bot/320); i++){
+      const x = ((rnd(i*83)*600 + time*9) % 760) - 180, y = i*320 + rnd(i*89)*140, rw = 110 + rnd(i*97)*90;
+      const g = c.createRadialGradient(x, y, rw*0.2, x, y, rw); g.addColorStop(0,'rgba(10,50,80,.10)'); g.addColorStop(1,'rgba(10,50,80,0)');
+      c.fillStyle = g; c.beginPath(); c.ellipse(x, y, rw*1.3, rw*0.8, 0.3, 0, TAU); c.fill();
+    }
+    c.save(); c.globalAlpha = 0.06 + 0.02*Math.sin(time*0.5); c.fillStyle = '#ffffff';
+    for(let i=0;i<4;i++){ const x0 = -60 + i*130 + Math.sin(time*0.2 + i)*20; c.beginPath(); c.moveTo(x0, top); c.lineTo(x0+40, top); c.lineTo(x0-120, bot); c.lineTo(x0-180, bot); c.closePath(); c.fill(); }
+    c.restore();
+  }
   // fényháló
   drawCausticLayer(c, causticTiles[0], (time*7) % CT, (time*4) % CT, 0.14*TH.caustic, top, bot);
   drawCausticLayer(c, causticTiles[1], (-time*5) % CT, (time*8) % CT, 0.1*TH.caustic, top, bot);
@@ -1050,9 +1062,14 @@ function drawFrog(c, x, y, ang, sc, o){
       c.beginPath(); c.arc(ex, ey-2, er*0.55, 0.15*Math.PI, 0.85*Math.PI); c.lineWidth = 2.2; c.stroke();
     } else {
       const px = ex + (o.lookX||0), py = ey - 2 + (o.lookY||0);
-      ell(c, px, py, er*0.5, er*0.54); c.fillStyle = o.iris || '#7a5a20'; c.fill();
-      if(o.slit) ell(c, px, py, er*0.13, er*0.42); else ell(c, px, py, er*0.36, er*0.4); c.fillStyle = '#111a14'; c.fill();
-      c.fillStyle = '#fff'; ell(c, px-er*0.18, py-er*0.2, er*0.16, er*0.16); c.fill(); ell(c, px+er*0.17, py+er*0.18, er*0.07, er*0.07); c.fill();
+      const irc = o.iris || '#c08a2c';
+      const ig = c.createRadialGradient(px-er*0.12, py-er*0.18, er*0.05, px, py, er*0.58);
+      ig.addColorStop(0, '#fff3c8'); ig.addColorStop(0.35, irc); ig.addColorStop(1, '#3a2410');
+      ell(c, px, py, er*0.52, er*0.56); c.fillStyle = ig; c.fill(); c.lineWidth = 1; c.strokeStyle = 'rgba(30,20,10,.6)'; c.stroke();
+      if(o.slit) ell(c, px, py, er*0.13, er*0.42); else ell(c, px, py, er*0.3, er*0.34); c.fillStyle = '#0d1410'; c.fill();
+      c.save(); ell(c, ex, ey-1, er*0.8, er*0.8); c.clip(); c.fillStyle = 'rgba(20,60,30,.22)'; ell(c, ex, ey-1-er*0.75, er*1.1, er*0.45); c.fill(); c.restore();
+      c.fillStyle = '#fff'; ell(c, px-er*0.17, py-er*0.22, er*0.19, er*0.17, -0.4); c.fill(); ell(c, px+er*0.18, py+er*0.2, er*0.08, er*0.08); c.fill();
+      c.strokeStyle = OUT;
     }
   }
   if(o.acc === 'crown'){
